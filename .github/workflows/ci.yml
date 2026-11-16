@@ -9,6 +9,9 @@ jobs:
   build-and-test:
     name: Build and test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: servicedesk-api
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +31,9 @@ jobs:
   docker-image:
     name: Docker image builds
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: servicedesk-api
     steps:
       - uses: actions/checkout@v4
 
