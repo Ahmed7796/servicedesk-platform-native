@@ -11,7 +11,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default") ?? throw new InvalidOperationException("Connection string 'Default' is missing.");
+        var connectionString = configuration.GetConnectionString("Default");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string is missing. Set the environment variable ConnectionStrings__Default " +
+                "(see .env.example at the repo root), or run: " +
+                "dotnet user-secrets set \"ConnectionStrings:Default\" \"<value>\" --project src/ServiceDesk.Api");
+        }
 
         services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 
