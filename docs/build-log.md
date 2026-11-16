@@ -42,6 +42,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - `ASPNETCORE_ENVIRONMENT=Development` in Compose must be revisited before M6-4.
 - `dotnet ef` and local `dotnet run` now need `ConnectionStrings__Default` or user-secrets (a README line in M6-1).
 - Consider a `.gitattributes` to pin line endings.
+- `UserRepository.ListApproverCandidatesAsync` (M1-0) has never run against SQL Server; the test project has no database. The M1-2 acceptance run (a real `request.submitted` on the exchange) must confirm `approverUserIds` is filled correctly; name this in the M1-2 brief.
 
 **Next:** Milestone 1 in order: M1-0, M1-1, M1-2, M1-3, M1-4a, M1-4b, M1-5. All are owned by api-dotnet and run one at a time (ORCHESTRATION.md).
 
