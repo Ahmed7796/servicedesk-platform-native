@@ -1,0 +1,12 @@
+{
+  "eventId": "c0e2a4b6-8d1f-4a3c-9e5b-7d9f1b3d5f26",
+  "type": "request.fulfilled",
+  "occurredAt": "17/11/2026 07:45",
+  "requestId": "3f6c2a9e-8b1d-4e57-9a2c-1d7e5b4f0a11",
+  "actorId": "1c3e5a7b-9d2f-4b6a-8c0e-2f4a6b8d0e1c",
+  "payload": {
+    "requesterId": "7a1e4c2b-5d3f-4a8e-b6c9-2e0f1a3b4c5d",
+    "status": "Fulfilled"
+  },
+  "version": 1
+}

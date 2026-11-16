@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/request.cancelled.schema.json",
+  "title": "request.cancelled",
+  "description": "The requester cancelled the request; pending steps are skipped. Published by ServiceRequest.Cancel.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "request.cancelled"
+    },
+    "version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requesterId": {
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "previousStatus": {
+          "enum": [
+            "Submitted",
+            "InReview"
+          ]
+        },
+        "status": {
+          "const": "Cancelled"
+        }
+      },
+      "required": [
+        "requesterId",
+        "previousStatus",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

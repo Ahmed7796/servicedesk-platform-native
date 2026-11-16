@@ -1,0 +1,18 @@
+{
+  "eventId": "2e4c6a8f-3b5d-4c7e-8f1a-9d7b5e3c1a84",
+  "type": "request.rejected",
+  "occurredAt": "2026-11-16T11:31:55.250Z",
+  "requestId": "3f6c2a9e-8b1d-4e57-9a2c-1d7e5b4f0a11",
+  "actorId": "9e7c5a3b-1d0f-4e2a-8b6c-4d2e0f8a6c1b",
+  "payload": {
+    "requesterId": "7a1e4c2b-5d3f-4a8e-b6c9-2e0f1a3b4c5d",
+    "decidedStep": {
+      "order": 2,
+      "position": "ItManager",
+      "scope": "Global"
+    },
+    "reason": "Standard model is out of stock; resubmit for the 14-inch model.",
+    "status": "Rejected"
+  },
+  "version": 1
+}

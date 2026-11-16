@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/defs.schema.json",
+  "title": "Shared definitions for ServiceDesk events",
+  "description": "Enum values mirror the C# enums in servicedesk-api/src/ServiceDesk.Domain/Enums and are serialised as their names.",
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "requestType": {
+      "enum": ["Equipment", "SoftwareAccess", "Leave", "Purchase"]
+    },
+    "requestStatus": {
+      "enum": ["Submitted", "InReview", "Approved", "Rejected", "Fulfilled", "Cancelled"]
+    },
+    "approverPosition": {
+      "enum": ["DepartmentHead", "ItManager", "HrManager", "FinanceManager", "GeneralManager"]
+    },
+    "approvalScope": {
+      "enum": ["RequesterDepartment", "Global"]
+    },
+    "stepOrder": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "step": {
+      "description": "One approval step as it exists on the request.",
+      "type": "object",
+      "properties": {
+        "order": { "$ref": "#/$defs/stepOrder" },
+        "position": { "$ref": "#/$defs/approverPosition" },
+        "scope": { "$ref": "#/$defs/approvalScope" },
+        "escalatedFrom": {
+          "description": "Original position when the step was escalated because the requester holds it; null otherwise.",
+          "anyOf": [{ "$ref": "#/$defs/approverPosition" }, { "type": "null" }]
+        }
+      },
+      "required": ["order", "position", "scope", "escalatedFrom"],
+      "additionalProperties": false
+    },
+    "actionableStep": {
+      "description": "A step someone must now decide, with the users the API resolved as eligible at publish time. See README: approverUserIds.",
+      "type": "object",
+      "properties": {
+        "order": { "$ref": "#/$defs/stepOrder" },
+        "position": { "$ref": "#/$defs/approverPosition" },
+        "scope": { "$ref": "#/$defs/approvalScope" },
+        "escalatedFrom": {
+          "anyOf": [{ "$ref": "#/$defs/approverPosition" }, { "type": "null" }]
+        },
+        "approverUserIds": {
+          "description": "May be empty. Consumers must not fail silently on empty; see README.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/uuid" },
+          "uniqueItems": true
+        }
+      },
+      "required": ["order", "position", "scope", "escalatedFrom", "approverUserIds"],
+      "additionalProperties": false
+    },
+    "decidedStep": {
+      "description": "The step that was just decided.",
+      "type": "object",
+      "properties": {
+        "order": { "$ref": "#/$defs/stepOrder" },
+        "position": { "$ref": "#/$defs/approverPosition" },
+        "scope": { "$ref": "#/$defs/approvalScope" }
+      },
+      "required": ["order", "position", "scope"],
+      "additionalProperties": false
+    },
+    "comment": {
+      "description": "Matches ApprovalStep.CommentMaxLength (500).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    }
+  }
+}

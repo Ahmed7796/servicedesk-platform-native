@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/request.fulfilled.schema.json",
+  "title": "request.fulfilled",
+  "description": "An Admin fulfilled an approved request. Published by ServiceRequest.Fulfil.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "request.fulfilled"
+    },
+    "version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requesterId": {
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "status": {
+          "const": "Fulfilled"
+        }
+      },
+      "required": [
+        "requesterId",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/request.step_approved.schema.json",
+  "title": "request.step_approved",
+  "description": "A step was approved and another step is still pending. Published by ServiceRequest.Approve when it is not the last step.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "request.step_approved"
+    },
+    "version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requesterId": {
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "decidedStep": {
+          "$ref": "defs.schema.json#/$defs/decidedStep"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/$defs/comment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "const": "InReview"
+        },
+        "nextStep": {
+          "description": "The step that must now be decided.",
+          "$ref": "defs.schema.json#/$defs/actionableStep"
+        }
+      },
+      "required": [
+        "requesterId",
+        "decidedStep",
+        "comment",
+        "status",
+        "nextStep"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
