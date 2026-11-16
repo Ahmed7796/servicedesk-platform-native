@@ -1,0 +1,545 @@
+openapi: 3.1.0
+info:
+  title: ServiceDesk API
+  version: 1.0.0
+  description: |
+    The C# service. It is the only service that changes a request (CLAUDE.md, rule 1)
+    and the only token issuer (rule 7). The phone reaches it through the reverse proxy at `/api`.
+
+    Where this file and the API's generated `/openapi/v1.json` disagree, this file is the contract.
+    See `README.md` in this folder.
+
+    Roles (JWT claim `role`): `Requester`, `Approver`, `Admin` for users;
+    `TriageService` for the copilot, which may only read requests (`GET /api/service-requests`,
+    `GET /api/service-requests/{id}`) and post triage suggestions. Every other operation requires a
+    user role, and a `TriageService` token gets 403 (empty body) from the role check, before any
+    handler code runs (CLAUDE.md, rule 6).
+servers:
+  - url: http://localhost:8080
+    description: Local Compose stack (direct)
+security:
+  - bearerAuth: []
+tags:
+  - name: auth
+  - name: requests
+  - name: triage
+  - name: health
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Sign in a user with email or employee number
+      description: Returns a JWT with `sub`, `email`, `name` and `role` claims. Wrong credentials and unknown users both get 401.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Wrong identifier or password
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  /api/auth/service-token:
+    post:
+      tags: [auth]
+      operationId: getServiceToken
+      summary: Issue a token to a service client (new, M1-4a)
+      description: |
+        Client-credentials exchange for the triage copilot. The client ID and secret come from the
+        environment of both services, never from the repo. The token carries `role: TriageService`
+        and `sub` set to the client ID; it cannot submit, approve, reject, cancel, fulfil or call `pending-for-me` (403).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceTokenRequest' }
+      responses:
+        '200':
+          description: Token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Unknown client or wrong secret
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  /api/service-requests:
+    get:
+      tags: [requests]
+      operationId: listServiceRequests
+      summary: List service requests
+      description: Exists today; listed for the end-to-end script. Any authenticated caller.
+      responses:
+        '200':
+          description: All requests (demo behaviour; no paging or filtering)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServiceRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [requests]
+      operationId: submitServiceRequest
+      summary: Submit a new request as the signed-in user
+      description: Builds the approval steps from the workflow for `type`, escalating a step to GeneralManager when the requester holds its position. User roles only; `TriageService` gets 403. 404 if no workflow exists for `type`. Publishes `request.submitted`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitServiceRequest' }
+      responses:
+        '201':
+          description: Submitted; publishes `request.submitted`
+          headers:
+            Location:
+              description: URL of the new request
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/service-requests/pending-for-me:
+    get:
+      tags: [requests]
+      operationId: listPendingForMe
+      summary: Requests whose current step the caller may decide now (new, M1-3)
+      description: |
+        Returns exactly the requests where `EnsureCanDecideCurrentStep` would accept the caller:
+        position and scope match, Admin fallback included, own requests excluded. Escalated steps
+        appear for the GeneralManager. An empty array when there is nothing to decide.
+        Ordered by `createdAt`, oldest first. `TriageService` gets 403.
+      responses:
+        '200':
+          description: Pending items
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PendingItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/service-requests/{id}:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [requests]
+      operationId: getServiceRequest
+      summary: One request with its audit trail and triage suggestion
+      description: '`requesterName` and `auditTrail` (M1-5) and `triage` (M1-4b) are new; the other fields exist today.'
+      responses:
+        '200':
+          description: The request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequestDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/service-requests/{id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [requests]
+      operationId: approveServiceRequest
+      summary: Approve the current step
+      description: User roles only; `TriageService` gets 403. Publishes `request.step_approved`, or `request.approved` on the last step.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveRequest' }
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/service-requests/{id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [requests]
+      operationId: rejectServiceRequest
+      summary: Reject the current step; remaining steps are skipped
+      description: User roles only; `TriageService` gets 403. Publishes `request.rejected`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectRequest' }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/service-requests/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [requests]
+      operationId: cancelServiceRequest
+      summary: Cancel own request before it is approved
+      description: Only the requester; `TriageService` gets 403. Publishes `request.cancelled`.
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/service-requests/{id}/fulfil:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [requests]
+      operationId: fulfilServiceRequest
+      summary: Mark an approved request fulfilled
+      description: Admin only; `TriageService` gets 403. Publishes `request.fulfilled`.
+      responses:
+        '200':
+          description: Fulfilled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/service-requests/{id}/triage:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [triage]
+      operationId: postTriageSuggestion
+      summary: Store the copilot's triage suggestion (new, M1-4b)
+      description: |
+        `TriageService` role only; any user token gets 403 (CLAUDE.md, rule 6).
+        One suggestion per request: a later post replaces the earlier one and returns 200, so a
+        retried event is harmless. Advisory only: the request's status and steps do not change,
+        no audit entry is written and no event is published.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TriageSuggestionInput' }
+      responses:
+        '200':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TriageSuggestion' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Liveness and database check
+      description: Plain-text ASP.NET Core health check. No token needed.
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            text/plain:
+              schema: { type: string, enum: [Healthy, Degraded] }
+        '503':
+          description: Unhealthy
+          content:
+            text/plain:
+              schema: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    RequestId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Missing, expired or invalid token; the body is empty. (Login's 401 for wrong credentials is documented on that operation and has a ProblemDetails body.)
+    Forbidden:
+      description: |
+        The caller may not do this. Two forms, and clients must handle both:
+        a domain rule refused (wrong position or department, own request) and the body is
+        ProblemDetails; or the role check refused (e.g. fulfil without `Admin`, triage without
+        `TriageService`) and the body is empty.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NotFound:
+      description: No request with this ID (for submit, no workflow for the requested type)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflict:
+      description: Not allowed in the request's current status, or a concurrent update won
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ValidationError:
+      description: Invalid input
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ValidationProblemDetails' }
+
+  schemas:
+    ProblemDetails:
+      description: RFC 9457 problem details as returned by ASP.NET Core. Clients show `detail`, else `title`.
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        traceId: { type: string }
+      required: [title, status]
+      additionalProperties: true
+
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              description: Key to messages. Usually the property name as the API spells it (`Title`); for unreadable JSON or a bad enum value it is a JSON path (`$.type`) or `dto`. Absent for domain validation errors. Clients should show the messages, not rely on the keys.
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+
+    LoginRequest:
+      type: object
+      properties:
+        identifier:
+          description: Email or 4-digit employee number
+          type: string
+          minLength: 1
+        password: { type: string, minLength: 1 }
+      required: [identifier, password]
+      additionalProperties: false
+
+    ServiceTokenRequest:
+      type: object
+      properties:
+        clientId: { type: string, minLength: 1 }
+        clientSecret: { type: string, minLength: 1 }
+      required: [clientId, clientSecret]
+      additionalProperties: false
+
+    TokenResult:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+      required: [accessToken, expiresAt]
+
+    SubmitServiceRequest:
+      type: object
+      properties:
+        type: { $ref: '../events/defs.schema.json#/$defs/requestType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, minLength: 1, maxLength: 4000 }
+      required: [type, title, description]
+      additionalProperties: false
+
+    ApproveRequest:
+      type: object
+      properties:
+        comment:
+          type: [string, 'null']
+          maxLength: 500
+      additionalProperties: false
+
+    RejectRequest:
+      type: object
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+      required: [reason]
+      additionalProperties: false
+
+    ApprovalStep:
+      type: object
+      properties:
+        order: { $ref: '../events/defs.schema.json#/$defs/stepOrder' }
+        position: { $ref: '../events/defs.schema.json#/$defs/approverPosition' }
+        scope: { $ref: '../events/defs.schema.json#/$defs/approvalScope' }
+        decision: { $ref: '../events/defs.schema.json#/$defs/stepDecision' }
+        decidedById:
+          type: [string, 'null']
+          format: uuid
+        decidedAt:
+          type: [string, 'null']
+          format: date-time
+        comment:
+          type: [string, 'null']
+          maxLength: 500
+        escalatedFrom:
+          oneOf:
+            - $ref: '../events/defs.schema.json#/$defs/approverPosition'
+            - type: 'null'
+      required: [order, position, scope, decision, decidedById, decidedAt, comment, escalatedFrom]
+
+    ServiceRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        type: { $ref: '../events/defs.schema.json#/$defs/requestType' }
+        status: { $ref: '../events/defs.schema.json#/$defs/requestStatus' }
+        requesterId: { type: string, format: uuid }
+        departmentId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/ApprovalStep' }
+      required: [id, title, description, type, status, requesterId, departmentId, createdAt, updatedAt, steps]
+
+    ServiceRequestDetail:
+      allOf:
+        - $ref: '#/components/schemas/ServiceRequest'
+        - type: object
+          properties:
+            requesterName: { type: string }
+            auditTrail:
+              description: Oldest first.
+              type: array
+              items: { $ref: '#/components/schemas/AuditEntry' }
+            triage:
+              oneOf:
+                - $ref: '#/components/schemas/TriageSuggestion'
+                - type: 'null'
+          required: [requesterName, auditTrail, triage]
+
+    AuditEntry:
+      type: object
+      properties:
+        action: { $ref: '../events/defs.schema.json#/$defs/auditAction' }
+        statusBefore:
+          description: Null for the `Submitted` entry.
+          oneOf:
+            - $ref: '../events/defs.schema.json#/$defs/requestStatus'
+            - type: 'null'
+        statusAfter: { $ref: '../events/defs.schema.json#/$defs/requestStatus' }
+        actorId: { type: string, format: uuid }
+        actorName: { type: string }
+        details:
+          type: [string, 'null']
+          maxLength: 200
+        occurredAt: { type: string, format: date-time }
+      required: [action, statusBefore, statusAfter, actorId, actorName, details, occurredAt]
+
+    PendingItem:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        title: { type: string }
+        type: { $ref: '../events/defs.schema.json#/$defs/requestType' }
+        status:
+          description: Submitted or InReview.
+          $ref: '../events/defs.schema.json#/$defs/requestStatus'
+        requesterId: { type: string, format: uuid }
+        requesterName: { type: string }
+        departmentId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        currentStep: { $ref: '#/components/schemas/ApprovalStep' }
+        triage:
+          description: Null until the copilot has posted a suggestion.
+          oneOf:
+            - $ref: '#/components/schemas/TriageSuggestion'
+            - type: 'null'
+      required: [requestId, title, type, status, requesterId, requesterName, departmentId, createdAt, currentStep, triage]
+
+    TriagePriority:
+      type: string
+      enum: [Low, Normal, High, Urgent]
+
+    TriageSuggestionInput:
+      description: Validated by the API; invalid input gets 400 and nothing is stored. No fields beyond these.
+      allOf:
+        - $ref: '#/components/schemas/TriageFields'
+      unevaluatedProperties: false
+
+    TriageFields:
+      description: The fields the copilot posts (CLAUDE.md, rule 6).
+      type: object
+      properties:
+        category:
+          description: The request type the copilot thinks fits; may differ from the type the requester chose.
+          $ref: '../events/defs.schema.json#/$defs/requestType'
+        priority: { $ref: '#/components/schemas/TriagePriority' }
+        suggestedRoute:
+          description: Approver positions in the order the copilot suggests.
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { $ref: '../events/defs.schema.json#/$defs/approverPosition' }
+        summary: { type: string, minLength: 1, maxLength: 500 }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+      required: [category, priority, suggestedRoute, summary, confidence]
+
+    TriageSuggestion:
+      allOf:
+        - $ref: '#/components/schemas/TriageFields'
+        - type: object
+          properties:
+            requestId: { type: string, format: uuid }
+            suggestedAt:
+              description: Time of the latest post.
+              type: string
+              format: date-time
+          required: [requestId, suggestedAt]

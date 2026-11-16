@@ -9,16 +9,62 @@
       "format": "uuid"
     },
     "requestType": {
-      "enum": ["Equipment", "SoftwareAccess", "Leave", "Purchase"]
+      "type": "string",
+      "enum": [
+        "Equipment",
+        "SoftwareAccess",
+        "Leave",
+        "Purchase"
+      ]
     },
     "requestStatus": {
-      "enum": ["Submitted", "InReview", "Approved", "Rejected", "Fulfilled", "Cancelled"]
+      "type": "string",
+      "enum": [
+        "Submitted",
+        "InReview",
+        "Approved",
+        "Rejected",
+        "Fulfilled",
+        "Cancelled"
+      ]
     },
     "approverPosition": {
-      "enum": ["DepartmentHead", "ItManager", "HrManager", "FinanceManager", "GeneralManager"]
+      "type": "string",
+      "enum": [
+        "DepartmentHead",
+        "ItManager",
+        "HrManager",
+        "FinanceManager",
+        "GeneralManager"
+      ]
     },
     "approvalScope": {
-      "enum": ["RequesterDepartment", "Global"]
+      "type": "string",
+      "enum": [
+        "RequesterDepartment",
+        "Global"
+      ]
+    },
+    "stepDecision": {
+      "type": "string",
+      "enum": [
+        "Pending",
+        "Approved",
+        "Rejected",
+        "Skipped",
+        "Cancelled"
+      ]
+    },
+    "auditAction": {
+      "type": "string",
+      "enum": [
+        "Submitted",
+        "StepApproved",
+        "StepRejected",
+        "Fulfilled",
+        "Cancelled",
+        "StepEscalated"
+      ]
     },
     "stepOrder": {
       "type": "integer",
@@ -28,46 +74,95 @@
       "description": "One approval step as it exists on the request.",
       "type": "object",
       "properties": {
-        "order": { "$ref": "#/$defs/stepOrder" },
-        "position": { "$ref": "#/$defs/approverPosition" },
-        "scope": { "$ref": "#/$defs/approvalScope" },
+        "order": {
+          "$ref": "#/$defs/stepOrder"
+        },
+        "position": {
+          "$ref": "#/$defs/approverPosition"
+        },
+        "scope": {
+          "$ref": "#/$defs/approvalScope"
+        },
         "escalatedFrom": {
           "description": "Original position when the step was escalated because the requester holds it; null otherwise.",
-          "anyOf": [{ "$ref": "#/$defs/approverPosition" }, { "type": "null" }]
+          "anyOf": [
+            {
+              "$ref": "#/$defs/approverPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
-      "required": ["order", "position", "scope", "escalatedFrom"],
+      "required": [
+        "order",
+        "position",
+        "scope",
+        "escalatedFrom"
+      ],
       "additionalProperties": false
     },
     "actionableStep": {
       "description": "A step someone must now decide, with the users the API resolved as eligible at publish time. See README: approverUserIds.",
       "type": "object",
       "properties": {
-        "order": { "$ref": "#/$defs/stepOrder" },
-        "position": { "$ref": "#/$defs/approverPosition" },
-        "scope": { "$ref": "#/$defs/approvalScope" },
+        "order": {
+          "$ref": "#/$defs/stepOrder"
+        },
+        "position": {
+          "$ref": "#/$defs/approverPosition"
+        },
+        "scope": {
+          "$ref": "#/$defs/approvalScope"
+        },
         "escalatedFrom": {
-          "anyOf": [{ "$ref": "#/$defs/approverPosition" }, { "type": "null" }]
+          "anyOf": [
+            {
+              "$ref": "#/$defs/approverPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "approverUserIds": {
           "description": "May be empty. Consumers must not fail silently on empty; see README.",
           "type": "array",
-          "items": { "$ref": "#/$defs/uuid" },
+          "items": {
+            "$ref": "#/$defs/uuid"
+          },
           "uniqueItems": true
         }
       },
-      "required": ["order", "position", "scope", "escalatedFrom", "approverUserIds"],
+      "required": [
+        "order",
+        "position",
+        "scope",
+        "escalatedFrom",
+        "approverUserIds"
+      ],
       "additionalProperties": false
     },
     "decidedStep": {
       "description": "The step that was just decided.",
       "type": "object",
       "properties": {
-        "order": { "$ref": "#/$defs/stepOrder" },
-        "position": { "$ref": "#/$defs/approverPosition" },
-        "scope": { "$ref": "#/$defs/approvalScope" }
+        "order": {
+          "$ref": "#/$defs/stepOrder"
+        },
+        "position": {
+          "$ref": "#/$defs/approverPosition"
+        },
+        "scope": {
+          "$ref": "#/$defs/approvalScope"
+        }
       },
-      "required": ["order", "position", "scope"],
+      "required": [
+        "order",
+        "position",
+        "scope"
+      ],
       "additionalProperties": false
     },
     "comment": {

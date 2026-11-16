@@ -1,0 +1,5 @@
+# Lint rules for contracts/openapi/*.yaml. Run with ./lint.sh.
+extends: ["spectral:oas"]
+rules:
+  # A contact object would put a personal email in a public repo. Ownership is stated in CLAUDE.md.
+  info-contact: off

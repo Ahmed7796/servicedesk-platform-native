@@ -1,0 +1,41 @@
+openapi: 3.1.0
+info:
+  title: ServiceDesk Triage Copilot
+  version: 1.0.0
+  description: |
+    The FastAPI service. It reacts to `request.submitted` events, reads the request through the
+    ServiceDesk API with a `TriageService` token, and posts a suggestion to
+    `POST /api/service-requests/{id}/triage`. It is advisory only (CLAUDE.md, rule 6).
+
+    It has no business endpoints. It is not behind the reverse proxy; the phone never calls it
+    (rule 8). This file exists so Compose health checks and the end-to-end script have a contract.
+servers:
+  - url: http://localhost:8082
+    description: Local Compose stack (direct)
+tags:
+  - name: health
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Liveness check
+      description: No token needed. Returns 200 whether or not an LLM key is configured.
+      security: []
+      responses:
+        '200':
+          description: Up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          const: ok
+      required: [status]
