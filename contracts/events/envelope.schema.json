@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/envelope.schema.json",
+  "title": "Event envelope",
+  "description": "Every ServiceDesk event has exactly these top-level fields. Each event schema narrows `type`, `version` and `payload`.",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "description": "Unique per event. Consumers de-duplicate on this value.",
+      "$ref": "defs.schema.json#/$defs/uuid"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^request\\.[a-z_]+$"
+    },
+    "occurredAt": {
+      "description": "When the state change happened (UTC, RFC 3339), not when the event was published.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "requestId": { "$ref": "defs.schema.json#/$defs/uuid" },
+    "actorId": {
+      "description": "The user whose action caused the event.",
+      "$ref": "defs.schema.json#/$defs/uuid"
+    },
+    "payload": { "type": "object" },
+    "version": {
+      "description": "Schema version of this event type. Bumped only for breaking changes.",
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": ["eventId", "type", "occurredAt", "requestId", "actorId", "payload", "version"],
+  "additionalProperties": false
+}

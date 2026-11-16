@@ -1,0 +1,13 @@
+{
+  "eventId": "6a8c0e2b-4d6f-4e8a-b0c2-3f5a7c9e1b05",
+  "type": "request.cancelled",
+  "occurredAt": "2026-11-16T09:40:00.000Z",
+  "requestId": "3f6c2a9e-8b1d-4e57-9a2c-1d7e5b4f0a11",
+  "actorId": "7a1e4c2b-5d3f-4a8e-b6c9-2e0f1a3b4c5d",
+  "payload": {
+    "requesterId": "7a1e4c2b-5d3f-4a8e-b6c9-2e0f1a3b4c5d",
+    "previousStatus": "InReview",
+    "status": "Cancelled"
+  },
+  "version": 1
+}

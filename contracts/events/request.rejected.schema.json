@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/request.rejected.schema.json",
+  "title": "request.rejected",
+  "description": "A step was rejected; remaining steps are skipped. Published by ServiceRequest.Reject.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "request.rejected"
+    },
+    "version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requesterId": {
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "decidedStep": {
+          "$ref": "defs.schema.json#/$defs/decidedStep"
+        },
+        "reason": {
+          "description": "Required on rejection.",
+          "$ref": "defs.schema.json#/$defs/comment"
+        },
+        "status": {
+          "const": "Rejected"
+        }
+      },
+      "required": [
+        "requesterId",
+        "decidedStep",
+        "reason",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

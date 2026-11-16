@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/request.approved.schema.json",
+  "title": "request.approved",
+  "description": "The last step was approved; the request awaits fulfilment by an Admin. Published by ServiceRequest.Approve on the last step.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "request.approved"
+    },
+    "version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requesterId": {
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "decidedStep": {
+          "$ref": "defs.schema.json#/$defs/decidedStep"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/$defs/comment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "const": "Approved"
+        }
+      },
+      "required": [
+        "requesterId",
+        "decidedStep",
+        "comment",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

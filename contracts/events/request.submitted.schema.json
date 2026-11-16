@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://servicedesk.example/contracts/events/request.submitted.schema.json",
+  "title": "request.submitted",
+  "description": "A requester submitted a new request. Published by ServiceRequest.Submit.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "request.submitted"
+    },
+    "version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requesterId": {
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "requestType": {
+          "$ref": "defs.schema.json#/$defs/requestType"
+        },
+        "departmentId": {
+          "description": "The requester's department at submission.",
+          "$ref": "defs.schema.json#/$defs/uuid"
+        },
+        "status": {
+          "const": "Submitted"
+        },
+        "steps": {
+          "description": "All approval steps in order, after escalation.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "defs.schema.json#/$defs/step"
+          }
+        },
+        "currentStep": {
+          "description": "The first step, which must now be decided.",
+          "$ref": "defs.schema.json#/$defs/actionableStep"
+        }
+      },
+      "required": [
+        "requesterId",
+        "title",
+        "requestType",
+        "departmentId",
+        "status",
+        "steps",
+        "currentStep"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
