@@ -10,7 +10,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 |---|---|---|---|---|
 | M0-1 | Create the repo layout; copy the existing C# project into `servicedesk-api/` | lead | `dotnet test ServiceDesk.slnx` passes from the new location | done |
 | M0-2 | Write `contracts/events/*.schema.json` for the envelope and the six events | lead | Each schema validates its example file | done |
-| M0-3 | Write `contracts/openapi/` for the new endpoints of all three services | lead | Files lint cleanly; Ahmed approves the contracts | todo |
+| M0-3 | Write `contracts/openapi/` for the new endpoints of all three services | lead | Files lint cleanly (`contracts/lint.sh`); Ahmed approves the contracts | done |
 | M0-4 | `docker-compose.yml` with SQL Server, PostgreSQL, RabbitMQ, Redis and the C# API | lead | `docker compose up` starts; `/health` returns Healthy | todo |
 
 **Human gate A:** contracts are frozen after M0-3. Later changes to `contracts/` need Ahmed's approval.
@@ -23,7 +23,9 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M1-1 | Outbox table and writing an outbox row in the same transaction as each state change. Depends on M1-0 (fills `approverUserIds`) | api-dotnet | Unit tests show one outbox row per transition, none on a failed transition | todo |
 | M1-2 | Background publisher that sends outbox rows to RabbitMQ and marks them sent | api-dotnet | Submitting a request puts a schema-valid `request.submitted` message on the exchange | todo |
 | M1-3 | `GET /api/service-requests/pending-for-me` | api-dotnet | Returns only steps the caller may decide; tests cover scope and escalation | todo |
-| M1-4 | `POST /api/service-requests/{id}/triage` for a service role only | api-dotnet | A user token gets 403; the service token stores the suggestion; no state change occurs | todo |
+| M1-4a | `POST /api/auth/service-token` (client credentials from env, role `TriageService`) and role restrictions so that role can only read requests | api-dotnet | A `service-token` token can `GET` requests and gets 403 on submit, approve, reject, cancel, fulfil and `pending-for-me`; wrong client secret gets 401 | todo |
+| M1-4b | `POST /api/service-requests/{id}/triage` for `TriageService` only; `triage` on detail and pending items. Depends on M1-3 and M1-4a | api-dotnet | A user token gets 403; a service token stores the suggestion and a second post replaces it; no state change, audit entry or event occurs | todo |
+| M1-5 | `auditTrail` and `requesterName` on `GET /api/service-requests/{id}` (needed by M4-4). Depends on M1-4b (`triage` is a required field) | api-dotnet | Response validates against `ServiceRequestDetail` in `contracts/openapi/servicedesk-api.yaml`; entries are oldest first, with a stable tiebreak for entries written at the same instant (`Submit` writes `Submitted` and `StepEscalated` with one timestamp), and include escalation entries | todo |
 
 ## Milestone 2: Notification and SLA service (days 3 to 5)
 
@@ -31,15 +33,15 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 |---|---|---|---|---|
 | M2-1 | Spring Boot skeleton, PostgreSQL migrations, JWT validation, health endpoint | notify-spring | `./mvnw test` passes; service starts in Compose | todo |
 | M2-2 | Consumers for the six events with Redis de-duplication | notify-spring | Replaying the same event twice changes the tables once | todo |
-| M2-3 | Pending-step table with due times; scheduled overdue job | notify-spring | A step past its due time appears in `GET /notify/overdue` | todo |
-| M2-4 | `POST /notify/devices` and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted` | todo |
+| M2-3 | Pending-step table with due times; scheduled overdue job | notify-spring | A step past its due time appears in `GET /notify/overdue`; a `TriageService` token gets 403 | todo |
+| M2-4 | `POST /notify/devices` and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted`; a `TriageService` token gets 403 on `POST /notify/devices` | todo |
 
 ## Milestone 3: Triage copilot (days 6 to 8)
 
 | ID | Task | Owner | Acceptance check | Status |
 |---|---|---|---|---|
 | M3-1 | FastAPI skeleton, service-token client for the C# API, health endpoint | copilot-python | `pytest` passes; service starts in Compose | todo |
-| M3-2 | Tools: get request, get workflow template, get requester history | copilot-python | Tool functions tested against a stubbed API | todo |
+| M3-2 | Tools: get request, get requester history (`GET /api/service-requests` filtered by `requesterId` on the client). No workflow-template tool: the route is the request's own `steps` | copilot-python | Tool functions tested against a stubbed API | todo |
 | M3-3 | Agent loop: on `request.submitted`, call the LLM with tools and post the triage suggestion | copilot-python | A submitted request gets a suggestion within the demo flow | todo |
 | M3-4 | Eval set of 50 labelled requests in `evals/cases.jsonl` and `python -m evals.run` | copilot-python | Script prints category and priority accuracy; result recorded in the README | todo |
 | M3-5 | Guardrails: output schema validation, low-confidence fallback, rate limit, canned mode for the public demo | copilot-python | Invalid model output never reaches the API; canned mode needs no API key | todo |

@@ -26,7 +26,7 @@ docker-compose.yml      whole stack: services, SQL Server, PostgreSQL, RabbitMQ,
 | `triage-copilot/` | `pytest` | `uvicorn app.main:app --reload` |
 | `triage-copilot/` evals | `python -m evals.run` | prints accuracy over `evals/cases.jsonl` |
 | `mobile/` | `npm test` | `npx expo start` |
-| `contracts/` | `./validate.sh` | validates event examples against schemas |
+| `contracts/` | `./validate.sh` and `./lint.sh` | event examples vs schemas; OpenAPI lint |
 | repo root | `docker compose up --build` | whole stack |
 
 Run the tests for the service you touched before you say a task is done. If a command above is wrong for the current state of the repo, fix this table in the same change.

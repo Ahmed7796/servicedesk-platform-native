@@ -1,0 +1,154 @@
+openapi: 3.1.0
+info:
+  title: ServiceDesk Notification Service
+  version: 1.0.0
+  description: |
+    The Spring Boot service. It consumes request events (`contracts/events/`), tracks pending steps
+    and their due times in its own PostgreSQL database, and sends push notifications through Expo.
+    It never changes a request (CLAUDE.md, rule 1). The phone reaches it through the reverse proxy
+    at `/notify`.
+
+    Tokens are issued by the ServiceDesk API and validated here with the same signing key (rule 7).
+    The user ID is the JWT `sub` claim; the role is the `role` claim.
+servers:
+  - url: http://localhost:8081
+    description: Local Compose stack (direct)
+security:
+  - bearerAuth: []
+tags:
+  - name: devices
+  - name: overdue
+  - name: health
+
+paths:
+  /notify/devices:
+    post:
+      tags: [devices]
+      operationId: registerDevice
+      summary: Register the caller's phone for push notifications (M2-4)
+      description: |
+        Links an Expo push token to the user in the JWT `sub`. Idempotent: registering the same
+        token again (for the same or a different user) updates it and returns 204. A user may have
+        several devices. A `TriageService` token gets 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '204': { description: Registered }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: '`TriageService` token; this endpoint is for users only' }
+
+  /notify/overdue:
+    get:
+      tags: [overdue]
+      operationId: listOverdue
+      summary: Pending steps past their due time (M2-3)
+      description: |
+        An Approver sees overdue steps where they are in `assignedUserIds`. An Admin sees every
+        overdue step, including unassigned ones (`assignedUserIds` empty; see
+        `contracts/events/README.md`, empty-list rule). A Requester gets an empty array.
+        A `TriageService` token gets 403.
+        A step leaves this list as soon as an event shows it was decided, or the request was
+        cancelled or rejected. Ordered by `dueAt`, oldest first.
+      responses:
+        '200':
+          description: Overdue steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OverdueStep' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: '`TriageService` token; this endpoint is for users only' }
+
+  /notify/health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Liveness, database, Redis and RabbitMQ check
+      description: No token needed. Served at `/notify/health` so it is reachable through the proxy.
+      security: []
+      responses:
+        '200':
+          description: Up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: Down
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing, expired or invalid token. The body may be empty.
+    ValidationError:
+      description: Invalid input
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  schemas:
+    ProblemDetails:
+      description: RFC 9457 problem details (Spring `ProblemDetail`).
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+      required: [title, status]
+      additionalProperties: true
+
+    DeviceRegistration:
+      type: object
+      properties:
+        expoPushToken:
+          type: string
+          pattern: '^Expo(nent)?PushToken\[.+\]$'
+        platform:
+          type: string
+          enum: [ios, android]
+      required: [expoPushToken, platform]
+      additionalProperties: false
+
+    OverdueStep:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        title:
+          description: From `request.submitted`.
+          type: string
+        requesterId: { type: string, format: uuid }
+        stepOrder: { $ref: '../events/defs.schema.json#/$defs/stepOrder' }
+        position: { $ref: '../events/defs.schema.json#/$defs/approverPosition' }
+        assignedUserIds:
+          description: The step's `approverUserIds` from the event. Empty means unassigned.
+          type: array
+          items: { type: string, format: uuid }
+        pendingSince:
+          description: '`occurredAt` of the event that made this step current.'
+          type: string
+          format: date-time
+        dueAt: { type: string, format: date-time }
+      required: [requestId, title, requesterId, stepOrder, position, assignedUserIds, pendingSince, dueAt]
+
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+      required: [status]
