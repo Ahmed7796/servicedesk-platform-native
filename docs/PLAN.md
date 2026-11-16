@@ -20,7 +20,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 
 | ID | Task | Owner | Acceptance check | Status |
 |---|---|---|---|---|
-| M1-0 | `GetEligibleApproversAsync` with tests proving it agrees with `EnsureCanDecideCurrentStep` (rules in `contracts/events/README.md`, section `approverUserIds`) | api-dotnet | For every seeded user and every step of every workflow, the user is in the result exactly when `EnsureCanDecideCurrentStep` accepts them; plus a test workflow with a GeneralManager step submitted by the GM, so the Admin fallback is exercised | todo |
+| M1-0 | `GetEligibleApproversAsync` with tests proving it agrees with `EnsureCanDecideCurrentStep` (rules in `contracts/events/README.md`, section `approverUserIds`) | api-dotnet | For every seeded user and every step of every workflow, the user is in the result exactly when `EnsureCanDecideCurrentStep` accepts them; plus a test workflow with a GeneralManager step submitted by the GM, so the Admin fallback is exercised | done |
 | M1-1 | Outbox table and writing an outbox row in the same transaction as each state change. Depends on M1-0 (fills `approverUserIds`) | api-dotnet | Unit tests show one outbox row per transition, none on a failed transition | todo |
 | M1-2 | Background publisher that sends outbox rows to RabbitMQ and marks them sent | api-dotnet | Submitting a request puts a schema-valid `request.submitted` message on the exchange | todo |
 | M1-3 | `GET /api/service-requests/pending-for-me` | api-dotnet | Returns only steps the caller may decide; tests cover scope and escalation | todo |

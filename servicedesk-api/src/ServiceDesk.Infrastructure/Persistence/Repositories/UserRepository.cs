@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Application.Abstractions;
 using ServiceDesk.Domain.Entities;
+using ServiceDesk.Domain.Enums;
 
 namespace ServiceDesk.Infrastructure.Persistence.Repositories;
 
@@ -18,5 +19,12 @@ public sealed class UserRepository(AppDbContext db) : IUserRepository
         var email = trimmed.ToLowerInvariant();
 
         return db.Users.FirstOrDefaultAsync(u => u.Email == email || u.EmployeeNumber == trimmed, ct);
+    }
+
+    public async Task<IReadOnlyList<User>> ListApproverCandidatesAsync(ApproverPosition position, CancellationToken ct)
+    {
+        return await db.Users
+            .Where(u => u.Role == UserRole.Admin || (u.Role == UserRole.Approver && u.Position == position))
+            .ToListAsync(ct);
     }
 }

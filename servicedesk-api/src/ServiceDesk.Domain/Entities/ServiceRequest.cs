@@ -187,31 +187,71 @@ public sealed class ServiceRequest : Entity
         _auditLogs.Add(new AuditLog(Id, admin.Id, AuditAction.Fulfilled, before, Status, "Fulfilled.", now));
     }
 
+    /// <summary>
+    /// True when <paramref name="actor"/> may decide the current step right now. Shares its rule chain with
+    /// <see cref="EnsureCanDecideCurrentStep"/>, so the two cannot disagree.
+    /// </summary>
+    public bool CanDecideCurrentStep(User actor)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+
+        return FindDecisionBlock(actor, RequestTrigger.ApproveStep, out _) == DecisionBlock.None;
+    }
+
+    // The first rule that stops the actor from deciding, or None. The order matters and is the order the checks always had.
+    private enum DecisionBlock
+    {
+        None,
+        InvalidState,
+        NoPendingStep,
+        IsRequester,
+        WrongPosition,
+        WrongDepartment,
+    }
+
+    private DecisionBlock FindDecisionBlock(User actor, RequestTrigger trigger, out ApprovalStep? step)
+    {
+        step = null;
+
+        if (!RequestStateMachine.CanFire(Status, trigger))
+            return DecisionBlock.InvalidState;
+
+        step = CurrentStep;
+        if (step is null)
+            return DecisionBlock.NoPendingStep;
+
+        if (RequesterId == actor.Id)
+            return DecisionBlock.IsRequester;
+
+        // Admin fallback: when the requester holds the step's position, Admins may also decide the step, in addition to the other holders of that position.
+        if (IsAdminFallback(actor, step))
+            return DecisionBlock.None;
+
+        if (!actor.IsApprover || actor.Position != step.Position)
+            return DecisionBlock.WrongPosition;
+
+        if (step.Scope == ApprovalScope.RequesterDepartment && actor.DepartmentId != DepartmentId)
+            return DecisionBlock.WrongDepartment;
+
+        return DecisionBlock.None;
+    }
+
     private ApprovalStep EnsureCanDecideCurrentStep(User actor, RequestTrigger trigger)
     {
         var verb = trigger == RequestTrigger.Reject ? "reject" : "approve";
 
-        if (!RequestStateMachine.CanFire(Status, trigger))
-            throw new InvalidStateTransitionException($"Cannot {verb} a request that is {Status}");
+        var block = FindDecisionBlock(actor, trigger, out var step);
 
-        var step = CurrentStep;
-        if (step is null)
-            throw new InvalidStateTransitionException("No approval step is awaiting a decision.");
-
-        if (RequesterId == actor.Id)
-            throw new ApprovalNotAllowedException($"You cannot {verb} your own request.");
-
-        // Admin fallback: when the requester holds the step's position, nobody else can decide it.
-        if (IsAdminFallback(actor, step))
-            return step;
-
-        if (!actor.IsApprover || actor.Position != step.Position)
-            throw new ApprovalNotAllowedException($"Only {step.Position} is authorized to {verb} step {step.Order}.");
-
-        if (step.Scope == ApprovalScope.RequesterDepartment && actor.DepartmentId != DepartmentId)
-            throw new ApprovalNotAllowedException($"Step {step.Order} must only be {verb}d by a {step.Position} in the requester's department.");
-
-        return step;
+        return block switch
+        {
+            DecisionBlock.None => step!,
+            DecisionBlock.InvalidState => throw new InvalidStateTransitionException($"Cannot {verb} a request that is {Status}"),
+            DecisionBlock.NoPendingStep => throw new InvalidStateTransitionException("No approval step is awaiting a decision."),
+            DecisionBlock.IsRequester => throw new ApprovalNotAllowedException($"You cannot {verb} your own request."),
+            DecisionBlock.WrongPosition => throw new ApprovalNotAllowedException($"Only {step!.Position} is authorized to {verb} step {step.Order}."),
+            DecisionBlock.WrongDepartment => throw new ApprovalNotAllowedException($"Step {step!.Order} must only be {verb}d by a {step.Position} in the requester's department."),
+            _ => throw new InvalidOperationException($"Unhandled decision block {block}."),
+        };
     }
 
     private bool IsAdminFallback(User actor, ApprovalStep step) =>
