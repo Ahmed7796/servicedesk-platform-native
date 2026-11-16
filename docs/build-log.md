@@ -41,6 +41,8 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - `validate.sh`, `lint.sh` and `docker compose up` don't run in CI.
 - `ASPNETCORE_ENVIRONMENT=Development` in Compose must be revisited before M6-4.
 - `dotnet ef` and local `dotnet run` now need `ConnectionStrings__Default` or user-secrets (a README line in M6-1).
+- `dotnet ef migrations add` also needs a dummy `Jwt__Key` (startup validates it); nothing connects. Consider a design-time `DbContext` factory so migrations need no env vars.
+- M1-1b brief must cover: `approverUserIds` has `uniqueItems: true` but `OutboxEventFactory` passes the resolver's list through (assert no duplicates); `Cancelled` accepts any `previousStatus` though the schema allows only `Submitted`/`InReview` (test it from both). M1-2: order unsent rows by `OccurredAt`, then `Id`.
 - Consider a `.gitattributes` to pin line endings.
 - `UserRepository.ListApproverCandidatesAsync` (M1-0) has never run against SQL Server; the test project has no database. The M1-2 acceptance run (a real `request.submitted` on the exchange) must confirm `approverUserIds` is filled correctly; name this in the M1-2 brief.
 
@@ -58,3 +60,4 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-16 | M0-3 | Lead's contract said every 403 has a ProblemDetails body; the API returns an empty body when `[Authorize(Roles=...)]` refuses | Validating live API responses against the contract | Contracts for existing endpoints are checked against the running API, not only against the code |
 | 2026-11-16 | M0-3 | Lead's contract said the copilot's role "cannot" act but gave no 403 on approve/reject/cancel, and M1-4's check never tested a service token against them; today the refusal would only happen by accident (non-GUID `sub` → 401) | Reviewer subagent | Every rule in CLAUDE.md's architecture list that a task touches needs a negative test named in the acceptance check |
 | 2026-11-16 | M0-5 | api-dotnet rewrote `ServiceDesk.Api.csproj` from CRLF to LF line endings (and churned `appsettings.Development.json`), so a 1-line change showed as 27 changed lines | Lead comparing `git diff --stat` with `--ignore-cr-at-eol` before review | Builders keep each file's existing line endings; lead checks both stats before sending a diff to review. Consider a `.gitattributes` |
+| 2026-11-16 | M1-1 | Lead briefed M1-1 as one task; the builder's plan came to ~770 lines (code + tests), over the 300-line rule, and the builder only planned to stop if production code passed 300 | Lead adding up the line counts in the plan before approving it | Lead totals code + tests in every plan before approval; M1-1 split into M1-1a / M1-1b |
