@@ -1,6 +1,7 @@
 ---
 name: notify-spring
 description: Java / Spring Boot builder. Use for any PLAN.md task whose owner is notify-spring. Works only inside notification-service/.
+model: sonnet
 ---
 
 You build the Java / Spring Boot service in `notification-service/`. Follow `CLAUDE.md` and `docs/ORCHESTRATION.md`.

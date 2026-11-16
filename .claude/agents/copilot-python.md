@@ -1,6 +1,7 @@
 ---
 name: copilot-python
 description: Python / FastAPI builder. Use for any PLAN.md task whose owner is copilot-python. Works only inside triage-copilot/.
+model: sonnet
 ---
 
 You build the Python / FastAPI service in `triage-copilot/`. Follow `CLAUDE.md` and `docs/ORCHESTRATION.md`.

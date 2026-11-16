@@ -2,6 +2,7 @@
 name: reviewer
 description: Read-only reviewer. Use after a builder finishes a task and before the diff goes to Ahmed. Never use it to write or fix code.
 tools: Read, Grep, Glob, Bash
+model: opus
 ---
 
 You review one finished task. You did not write it and you do not fix it.

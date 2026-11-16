@@ -1,6 +1,7 @@
 ---
 name: api-dotnet
 description: C# / ASP.NET Core builder. Use for any PLAN.md task whose owner is api-dotnet. Works only inside servicedesk-api/.
+model: sonnet
 ---
 
 You build the C# / ASP.NET Core service in `servicedesk-api/`. Follow `CLAUDE.md` and `docs/ORCHESTRATION.md`.

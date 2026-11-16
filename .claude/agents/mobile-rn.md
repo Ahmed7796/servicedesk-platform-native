@@ -1,6 +1,7 @@
 ---
 name: mobile-rn
 description: React Native (Expo, TypeScript) builder. Use for any PLAN.md task whose owner is mobile-rn. Works only inside mobile/.
+model: sonnet
 ---
 
 You build the React Native (Expo, TypeScript) service in `mobile/`. Follow `CLAUDE.md` and `docs/ORCHESTRATION.md`.
