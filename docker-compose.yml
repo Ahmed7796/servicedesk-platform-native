@@ -1,17 +1,70 @@
+# Whole demo stack. Passwords and keys come from .env (git-ignored); see .env.example.
+# Infrastructure ports are bound to 127.0.0.1 so they are reachable from this machine only.
+# The Spring and Python services are added here by the lead when M2-1 and M3-1 need them.
+
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "ServiceDesk!Dev123"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is not set. Copy .env.example to .env and fill it in.}
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  postgres:
+    # Owned by notification-service (CLAUDE.md, rule 2).
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: notify
+      POSTGRES_USER: notify
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set. Copy .env.example to .env and fill it in.}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notify -d notify"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER is not set. Copy .env.example to .env and fill it in.}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is not set. Copy .env.example to .env and fill it in.}
+    ports:
+      - "127.0.0.1:5672:5672"     # AMQP
+      - "127.0.0.1:15672:15672"   # management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    # Processed-event IDs for idempotent consumers (CLAUDE.md, rule 5). No auth; not exposed beyond localhost.
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   api:
     build:
@@ -20,9 +73,16 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Development: runs migrations and seeds demo accounts. Revisit before M6-4 deploys this stack.
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Default: "Server=db,1433;Database=ServiceDesk;User Id=sa;Password=ServiceDesk!Dev123;TrustServerCertificate=True"
+      ConnectionStrings__Default: "Server=db,1433;Database=ServiceDesk;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
       Jwt__Key: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is not set. Copy .env.example to .env and set it (openssl rand -base64 32).}
     depends_on:
       db:
         condition: service_healthy
+
+volumes:
+  mssql-data:
+  pg-data:
+  rabbitmq-data:
+  redis-data:

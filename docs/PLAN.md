@@ -11,7 +11,8 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M0-1 | Create the repo layout; copy the existing C# project into `servicedesk-api/` | lead | `dotnet test ServiceDesk.slnx` passes from the new location | done |
 | M0-2 | Write `contracts/events/*.schema.json` for the envelope and the six events | lead | Each schema validates its example file | done |
 | M0-3 | Write `contracts/openapi/` for the new endpoints of all three services | lead | Files lint cleanly (`contracts/lint.sh`); Ahmed approves the contracts | done |
-| M0-4 | `docker-compose.yml` with SQL Server, PostgreSQL, RabbitMQ, Redis and the C# API | lead | `docker compose up` starts; `/health` returns Healthy | todo |
+| M0-4 | `docker-compose.yml` with SQL Server, PostgreSQL, RabbitMQ, Redis and the C# API | lead | `docker compose up` starts; `/health` returns Healthy | done |
+| M0-5 | Remove the hardcoded connection string (SA password) from `appsettings.Development.json`; local `dotnet run` reads `ConnectionStrings__Default` from the environment or `dotnet user-secrets` | api-dotnet | No password in any tracked file under `servicedesk-api/`; `dotnet run` without the variable fails with a message naming `ConnectionStrings__Default`; `dotnet test` passes; the API still starts in Compose | todo |
 
 **Human gate A:** contracts are frozen after M0-3. Later changes to `contracts/` need Ahmed's approval.
 
