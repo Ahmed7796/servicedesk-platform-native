@@ -11,6 +11,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<WorkflowTemplate> WorkflowTemplates => Set<WorkflowTemplate>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
