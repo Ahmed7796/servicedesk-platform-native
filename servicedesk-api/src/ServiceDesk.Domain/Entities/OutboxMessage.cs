@@ -29,4 +29,6 @@ public sealed class OutboxMessage : Entity
         OccurredAt = occurredAt;
         Body = body;
     }
+
+    public void MarkSent(DateTimeOffset at) => SentAt = at;
 }

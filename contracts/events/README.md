@@ -32,6 +32,24 @@ Escalation (a step moved to GeneralManager because the requester holds its posit
 
 `occurredAt` is when the state change happened, not when the publisher sent it. `actorId` is the user whose action caused the event; for an Admin deciding on someone's behalf it is the Admin.
 
+## Transport (RabbitMQ)
+
+| Item | Value |
+|---|---|
+| Exchange | `servicedesk.events`, type `topic`, durable. Declared by `servicedesk-api` at startup; consumers may declare it too (same arguments, so the declaration is idempotent) |
+| Routing key | The event's `type`, e.g. `request.submitted` |
+| Body | The envelope JSON, UTF-8, exactly as stored in the outbox |
+| `content_type` | `application/json` |
+| `message_id` | The envelope's `eventId` |
+| `type` | The envelope's `type` |
+| `delivery_mode` | `2` (persistent) |
+
+**Delivery.** At least once. The publisher marks an outbox row sent only after the broker confirms it (publisher confirms), so a crash between publish and confirm sends the message again. This is why consumers de-duplicate (rule 1 below).
+
+**Order.** Rows are published oldest first (`occurredAt`, then `eventId`), but consumers must not rely on order across requests, and a retry can deliver an older event after a newer one. Use `occurredAt` when order matters.
+
+**Queues belong to consumers.** Each consuming service declares its own durable queue and binds the routing keys it needs, e.g. `notify.events` bound to `request.#`, `copilot.triage` bound to `request.submitted`. The publisher never declares queues. A message published while no queue is bound is dropped by the broker, and the outbox does not resend it, because the broker confirmed it. So each consumer declares and binds its queue at startup, before it reports healthy, and in Compose the API waits for the consumers' health checks (`depends_on: condition: service_healthy`, added when M2-1 and M3-1 add those services). Before then, events with no bound queue are lost; the demo accepts this. Virtual host: the default, `/`.
+
 ## Rules for consumers
 
 1. **De-duplicate on `eventId`.** Delivery is at-least-once. Record processed IDs in Redis and ignore repeats (CLAUDE.md, rule 5).
