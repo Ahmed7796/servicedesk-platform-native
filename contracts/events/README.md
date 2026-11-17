@@ -36,7 +36,7 @@ Escalation (a step moved to GeneralManager because the requester holds its posit
 
 | Item | Value |
 |---|---|
-| Exchange | `servicedesk.events`, type `topic`, durable. Declared by `servicedesk-api` at startup; consumers may declare it too (same arguments, so the declaration is idempotent) |
+| Exchange | `servicedesk.events`, type `topic`, durable. `servicedesk-api` declares it on each new broker connection, so it may not exist until the first event is published. **Every consumer must declare it too** (same arguments, so the declaration is idempotent) before binding its queue |
 | Routing key | The event's `type`, e.g. `request.submitted` |
 | Body | The envelope JSON, UTF-8, exactly as stored in the outbox |
 | `content_type` | `application/json` |
