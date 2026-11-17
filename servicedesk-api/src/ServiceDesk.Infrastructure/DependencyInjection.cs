@@ -20,7 +20,7 @@ public static class DependencyInjection
                 "dotnet user-secrets set \"ConnectionStrings:Default\" \"<value>\" --project src/ServiceDesk.Api");
         }
 
-        services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
         services.AddScoped<IUserRepository, UserRepository>();

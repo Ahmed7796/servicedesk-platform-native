@@ -15,7 +15,7 @@ public sealed class ServiceRequestConfiguration : IEntityTypeConfiguration<Servi
         builder.Property(r => r.Type).HasConversion<string>().HasMaxLength(30);
         builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(r => r.RequesterPosition).HasConversion<string>().HasMaxLength(30);
-        builder.Property(r => r.RowVersion).IsRowVersion();
+        builder.Property(r => r.RowVersion).IsRowVersion(); // uint + IsRowVersion: Npgsql maps it to the xmin system column.
         builder.HasIndex(r => r.Status);
         builder.HasIndex(r => r.RequesterId);
         builder.Ignore(r => r.CurrentStep);

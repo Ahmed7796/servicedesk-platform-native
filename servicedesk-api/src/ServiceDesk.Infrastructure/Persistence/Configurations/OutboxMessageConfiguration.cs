@@ -11,9 +11,9 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.ToTable("OutboxMessages");
         builder.Property(m => m.Id).ValueGeneratedNever();
         builder.Property(m => m.Type).IsRequired().HasMaxLength(OutboxMessage.TypeMaxLength);
-        builder.Property(m => m.Body).IsRequired(); // nvarchar(max): the whole envelope JSON.
+        builder.Property(m => m.Body).IsRequired(); // text: the whole envelope JSON.
 
         // The publisher polls for unsent rows oldest first.
-        builder.HasIndex(m => m.OccurredAt).HasFilter("[SentAt] IS NULL");
+        builder.HasIndex(m => m.OccurredAt).HasFilter("\"SentAt\" IS NULL");
     }
 }

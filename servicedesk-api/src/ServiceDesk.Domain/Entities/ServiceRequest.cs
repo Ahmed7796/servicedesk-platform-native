@@ -25,7 +25,7 @@ public sealed class ServiceRequest : Entity
     public Guid DepartmentId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
-    public byte[] RowVersion { get; private set; } = null!;
+    public uint RowVersion { get; private set; } // PostgreSQL xmin, set by the database.
     public ApprovalStep? CurrentStep => _approvalSteps.Where(s => s.Decision == StepDecision.Pending).OrderBy(s => s.Order).FirstOrDefault();
 
 

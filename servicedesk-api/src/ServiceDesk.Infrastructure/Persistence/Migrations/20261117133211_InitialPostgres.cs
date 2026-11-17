@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ServiceDesk.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialPostgres : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,8 +15,8 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 name: "Departments",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -24,12 +24,28 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "OutboxMessages",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Type = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    RequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    OccurredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    Body = table.Column<string>(type: "text", nullable: false),
+                    SentAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OutboxMessages", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WorkflowTemplates",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RequestType = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequestType = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -40,14 +56,14 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    EmployeeNumber = table.Column<string>(type: "nvarchar(4)", maxLength: 4, nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    DisplayName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Role = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Position = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
-                    DepartmentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    EmployeeNumber = table.Column<string>(type: "character varying(4)", maxLength: 4, nullable: false),
+                    PasswordHash = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    DisplayName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Role = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Position = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
+                    DepartmentId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -64,11 +80,11 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 name: "WorkflowStepTemplates",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    WorkflowTemplateId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Order = table.Column<int>(type: "int", nullable: false),
-                    Position = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Scope = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    WorkflowTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Order = table.Column<int>(type: "integer", nullable: false),
+                    Position = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Scope = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -85,17 +101,17 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 name: "ServiceRequests",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: false),
-                    Type = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    RequesterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RequesterPosition = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
-                    DepartmentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
+                    Type = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Status = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    RequesterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequesterPosition = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
+                    DepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -118,16 +134,16 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 name: "ApprovalSteps",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ServiceRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Order = table.Column<int>(type: "int", nullable: false),
-                    Position = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    EscalatedFrom = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
-                    Scope = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Decision = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    DecidedById = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    DecidedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                    Comment = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ServiceRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Order = table.Column<int>(type: "integer", nullable: false),
+                    Position = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    EscalatedFrom = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
+                    Scope = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Decision = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    DecidedById = table.Column<Guid>(type: "uuid", nullable: true),
+                    DecidedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    Comment = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -150,14 +166,14 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 name: "AuditLogs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ServiceRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ActorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Action = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    StatusBefore = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
-                    StatusAfter = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Details = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    OccurredAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ServiceRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ActorId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Action = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    StatusBefore = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
+                    StatusAfter = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Details = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    OccurredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -202,6 +218,12 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                 table: "Departments",
                 column: "Name",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OutboxMessages_OccurredAt",
+                table: "OutboxMessages",
+                column: "OccurredAt",
+                filter: "\"SentAt\" IS NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceRequests_DepartmentId",
@@ -256,6 +278,9 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "AuditLogs");
+
+            migrationBuilder.DropTable(
+                name: "OutboxMessages");
 
             migrationBuilder.DropTable(
                 name: "WorkflowStepTemplates");

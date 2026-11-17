@@ -3,21 +3,22 @@
 # The Spring and Python services are added here by the lead when M2-1 and M3-1 need them.
 
 services:
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+  api-db:
+    # Owned by servicedesk-api (CLAUDE.md, rule 2). Separate from notification-service's postgres.
+    image: postgres:17-alpine
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is not set. Copy .env.example to .env and fill it in.}
+      POSTGRES_DB: servicedesk
+      POSTGRES_USER: servicedesk
+      POSTGRES_PASSWORD: ${API_DB_PASSWORD:?API_DB_PASSWORD is not set. Copy .env.example to .env and fill it in.}
     ports:
-      - "127.0.0.1:1433:1433"
+      - "127.0.0.1:5433:5432"   # 5433 on the host so it does not clash with notification-service's postgres
     volumes:
-      - mssql-data:/var/opt/mssql
+      - api-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U servicedesk -d servicedesk"]
+      interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 20s
 
   postgres:
     # Owned by notification-service (CLAUDE.md, rule 2).
@@ -75,14 +76,14 @@ services:
     environment:
       # Development: runs migrations and seeds demo accounts. Revisit before M6-4 deploys this stack.
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Default: "Server=db,1433;Database=ServiceDesk;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      ConnectionStrings__Default: "Host=api-db;Port=5432;Database=servicedesk;Username=servicedesk;Password=${API_DB_PASSWORD}"
       Jwt__Key: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is not set. Copy .env.example to .env and set it (openssl rand -base64 32).}
     depends_on:
-      db:
+      api-db:
         condition: service_healthy
 
 volumes:
-  mssql-data:
+  api-db-data:
   pg-data:
   rabbitmq-data:
   redis-data:
