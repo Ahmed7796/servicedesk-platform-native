@@ -12,4 +12,6 @@ public interface IUserRepository
     // A superset of the users who may decide a step: approvers holding the position (any department) plus all Admins.
     // The domain (ServiceRequest.CanDecideCurrentStep) does the real filtering.
     Task<IReadOnlyList<User>> ListApproverCandidatesAsync(ApproverPosition position, CancellationToken ct);
+
+    Task<IReadOnlyList<User>> ListByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct);
 }

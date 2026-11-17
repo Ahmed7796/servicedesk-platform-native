@@ -16,6 +16,14 @@ public sealed class ServiceRequestsController(ServiceRequestService service) : C
         return Ok(await service.ListAsync(ct));
     }
 
+    // Role list, not just [Authorize]: the TriageService role (M1-4a) is left out, so it gets 403.
+    [HttpGet("pending-for-me")]
+    [Authorize(Roles = "Requester,Approver,Admin")]
+    public async Task<ActionResult<IReadOnlyList<PendingItemDto>>> ListPendingForMe(CancellationToken ct)
+    {
+        return Ok(await service.ListPendingForAsync(GetCurrentUserId(), ct));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ServiceRequestDto>> GetById(Guid id, CancellationToken ct)
     {
