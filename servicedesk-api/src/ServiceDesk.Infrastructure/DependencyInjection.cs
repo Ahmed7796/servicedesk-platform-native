@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IWorkflowTemplateRepository, WorkflowTemplateRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IOutboxRepository, OutboxRepository>();
 
         return services;
     }

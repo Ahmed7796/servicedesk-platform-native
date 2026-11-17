@@ -17,6 +17,7 @@ public class ServiceRequestServiceTests
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IWorkflowTemplateRepository _workflows = Substitute.For<IWorkflowTemplateRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IOutboxRepository _outbox = Substitute.For<IOutboxRepository>();
     private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
 
     private readonly User _requester = User.CreateRequester("requester@mail.com", "1001", "hash", "Omar", OpsDeptId);
@@ -29,7 +30,7 @@ public class ServiceRequestServiceTests
     public ServiceRequestServiceTests()
     {
         _timeProvider.GetUtcNow().Returns(Now);
-        _service = new ServiceRequestService(_requests, _users, _workflows, _unitOfWork, _timeProvider);
+        _service = new ServiceRequestService(_requests, _users, _workflows, _unitOfWork, _outbox, new ApproverResolver(_users), _timeProvider);
     }
 
     private ServiceRequest SubmitValid()

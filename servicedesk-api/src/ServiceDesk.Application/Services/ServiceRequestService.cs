@@ -1,11 +1,13 @@
 using ServiceDesk.Application.Abstractions;
 using ServiceDesk.Application.DTOs;
+using ServiceDesk.Application.Events;
 using ServiceDesk.Domain.Entities;
+using ServiceDesk.Domain.Enums;
 using ServiceDesk.Domain.Exceptions;
 
 namespace ServiceDesk.Application.Services;
 
-public sealed class ServiceRequestService(IServiceRequestRepository requests, IUserRepository users, IWorkflowTemplateRepository workflows, IUnitOfWork unitOfWork, TimeProvider timeProvider)
+public sealed class ServiceRequestService(IServiceRequestRepository requests, IUserRepository users, IWorkflowTemplateRepository workflows, IUnitOfWork unitOfWork, IOutboxRepository outbox, ApproverResolver approvers, TimeProvider timeProvider)
 {
     public async Task<ServiceRequestDto> SubmitAsync(Guid requesterId, SubmitServiceRequestDto dto, CancellationToken ct)
     {
@@ -13,8 +15,13 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
 
         var workflow = await workflows.GetByTypeAsync(dto.Type, ct) ?? throw new NotFoundException($"No workflow is configured for {dto.Type} requests.");
 
-        var request = ServiceRequest.Submit(requester, dto.Title, dto.Description, workflow, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        var request = ServiceRequest.Submit(requester, dto.Title, dto.Description, workflow, now);
+
+        // Resolve before any Add, so a resolver failure stages nothing.
+        var approverIds = await approvers.GetEligibleApproversAsync(request, ct);
         requests.Add(request);
+        outbox.Add(OutboxEventFactory.Submitted(request, requester.Id, now, approverIds));
 
         await unitOfWork.SaveChangesAsync(ct);
 
@@ -41,8 +48,20 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
 
         var approver = await users.GetByIdAsync(approverId, ct) ?? throw new NotFoundException($"User {approverId} not found.");
 
-        request.Approve(approver, comment, timeProvider.GetUtcNow());
-    
+        var now = timeProvider.GetUtcNow();
+        var decidedStep = request.CurrentStep!; // captured BEFORE the transition; Approve passes its checks only when a step is pending
+        request.Approve(approver, comment, now);
+
+        if (request.Status == RequestStatus.Approved)
+        {
+            outbox.Add(OutboxEventFactory.Approved(request, decidedStep, approver.Id, now));
+        }
+        else
+        {
+            var nextApprovers = await approvers.GetEligibleApproversAsync(request, ct); // next step, so AFTER the approve
+            outbox.Add(OutboxEventFactory.StepApproved(request, decidedStep, approver.Id, now, nextApprovers));
+        }
+
         await unitOfWork.SaveChangesAsync(ct);
 
         return ServiceRequestDto.FromEntity(request);
@@ -54,7 +73,10 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
 
         var approver = await users.GetByIdAsync(approverId, ct) ?? throw new NotFoundException($"User {approverId} not found.");
 
-        request.Reject(approver, reason, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        var decidedStep = request.CurrentStep!; // captured BEFORE the transition
+        request.Reject(approver, reason, now);
+        outbox.Add(OutboxEventFactory.Rejected(request, decidedStep, approver.Id, now));
 
         await unitOfWork.SaveChangesAsync(ct);
 
@@ -67,7 +89,10 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
 
         var requester = await users.GetByIdAsync(requesterId, ct) ?? throw new NotFoundException($"User {requesterId} not found.");
 
-        request.Cancel(requester, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        var previousStatus = request.Status; // captured BEFORE; Cancel throws unless this is Submitted or InReview
+        request.Cancel(requester, now);
+        outbox.Add(OutboxEventFactory.Cancelled(request, previousStatus, requester.Id, now));
 
         await unitOfWork.SaveChangesAsync(ct);
 
@@ -80,7 +105,9 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
 
         var admin = await users.GetByIdAsync(adminId, ct) ?? throw new NotFoundException($"User {adminId} not found.");
 
-        request.Fulfil(admin, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        request.Fulfil(admin, now);
+        outbox.Add(OutboxEventFactory.Fulfilled(request, admin.Id, now));
 
         await unitOfWork.SaveChangesAsync(ct);
 

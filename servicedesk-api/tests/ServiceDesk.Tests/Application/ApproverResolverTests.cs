@@ -256,4 +256,17 @@ public class ApproverResolverTests
 
         await repo.Received(1).ListApproverCandidatesAsync(ApproverPosition.DepartmentHead, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Resolver_RepositoryReturnsSameUserTwice_ListsTheUserOnce()
+    {
+        var repo = Substitute.For<IUserRepository>();
+        repo.ListApproverCandidatesAsync(Arg.Any<ApproverPosition>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<User>>([_opsHead, _opsHead]));
+        var request = ServiceRequest.Submit(_opsRequester, "T", "D", _seedWorkflows[0], Now);
+
+        var ids = await new ApproverResolver(repo).GetEligibleApproversAsync(request, CancellationToken.None);
+
+        Assert.Equal([_opsHead.Id], ids);
+    }
 }
