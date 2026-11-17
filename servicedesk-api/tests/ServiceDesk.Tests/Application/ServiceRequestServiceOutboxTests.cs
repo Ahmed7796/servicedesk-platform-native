@@ -259,7 +259,7 @@ public class ServiceRequestServiceOutboxTests
         _users.ListApproverCandidatesAsync(Arg.Any<ApproverPosition>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<IReadOnlyList<User>>(new TimeoutException("database unavailable")));
 
-    // A unit test cannot show the rollback: that is SQL Server's job. This shows only that the row was added once and the exception reaches the caller.
+    // A unit test cannot show the rollback: that is the database's job. This shows only that the row was added once and the exception reaches the caller.
     [Fact]
     public async Task Save_ConcurrencyConflict_PropagatesAfterOneAdd()
     {

@@ -7,14 +7,14 @@ Owner: Ahmed Abdelgadir. This is a portfolio project with a two-week build windo
 ## Repo layout
 
 ```
-servicedesk-api/        C# / ASP.NET Core 10, EF Core, SQL Server   (existing, extended here)
+servicedesk-api/        C# / ASP.NET Core 10, EF Core, PostgreSQL   (existing, extended here)
 notification-service/   Java 21 / Spring Boot, PostgreSQL           (new)
 triage-copilot/         Python 3.12 / FastAPI                        (new)
 mobile/                 React Native (Expo), TypeScript              (new)
 contracts/              events/*.schema.json, openapi/*.yaml         (source of truth between services)
 proxy/                  reverse proxy config
 docs/                   PLAN.md tasks, ORCHESTRATION.md, handoffs/, build-log.md
-docker-compose.yml      whole stack: services, SQL Server, PostgreSQL, RabbitMQ, Redis
+docker-compose.yml      whole stack: services, PostgreSQL (one per service), RabbitMQ, Redis
 ```
 
 ## Commands

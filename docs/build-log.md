@@ -34,6 +34,13 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Process:** the reviewer stays on `opus` (decided after /usage). Reviewer briefs now name the files to read, to keep cost down.
 - **First delegation (M0-5):** the plan-then-approve loop worked. The builder stopped correctly on a missing project reference, and the lead caught line-ending churn before review.
 
+**Decision, 2026-11-17: `servicedesk-api` moves to PostgreSQL (task M0-6).**
+- Why: SQL Server needs at least 2 GB RAM to start (too much for M6-4's one small server) and its image is x86-64 only (the M6-1 quick start would fail or emulate on Apple Silicon). The stack already runs PostgreSQL.
+- Against, judged weaker than the project's scope: "C# + SQL Server" is the usual enterprise pairing; about half a day of work.
+- Rule 2 kept: the API gets its own PostgreSQL container, separate from notification-service's.
+- **Exception to "never edit a committed migration", authorized by Ahmed:** `InitialCreate` and `AddOutbox` are SQL Server-specific and are deleted and regenerated for PostgreSQL. Safe only because nothing is deployed and there is no data to keep. From M0-6 on, the rule applies again with no exceptions.
+- Verified on compose (lead, 2026-11-17): `InitialPostgres` applies; submit + approve write two outbox rows matching their audit timestamps, both ajv-valid. Racing approve against cancel 15 times gave 14 overlaps: each time exactly one call won, the other got 409 "Concurrency conflict", and the loser's outbox row was rolled back. This closes M1-1b's known limit (rollback on a concurrency conflict untested against a real database).
+
 **Open follow-ups**
 - An API container health check, with M1-2 (see `docs/handoffs/M0-4.md`).
 - The generated `/openapi/v1.json` types enums as integers (api-dotnet; no task yet).

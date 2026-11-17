@@ -14,7 +14,7 @@ An internal service-request API: employees submit requests, which then pass thro
 
 ## Quick start
 
-**You only need Docker.** The SQL Server database, the migrations and the demo data all start with the stack.
+**You only need Docker.** The PostgreSQL database, the migrations and the demo data all start with the stack.
 
 ```bash
 git clone https://github.com/Ahmed7796/dotnet-service-request-portal.git
@@ -27,7 +27,7 @@ cp .env.example .env
 #    (or run `openssl rand -base64 32` and paste the result after JWT_SECRET_KEY=)
 sed -i.bak "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$(openssl rand -base64 32)|" .env
 
-# 3. Build and start the API and SQL Server
+# 3. Build and start the API and PostgreSQL
 docker compose up --build
 ```
 
@@ -83,7 +83,7 @@ Optional: approving the request again now returns **409**, and calling `fulfil` 
                │        │
                ▼        ▼
 ┌──────────────┐    ┌────────────────┐
-│ Application  │◄───│ Infrastructure │  EF Core, SQL Server, repositories, seeding
+│ Application  │◄───│ Infrastructure │  EF Core, PostgreSQL, repositories, seeding
 └──────┬───────┘    └────────────────┘
        │
        ▼
@@ -130,7 +130,7 @@ Arrows point toward the dependency, and Domain depends on nothing.
 - **State machine as a transition table:** `RequestStateMachine` is a dictionary of `(status, trigger) → status`. Every legal move is listed in one place, and anything else throws `InvalidStateTransitionException` (409).
 - **Workflow copied at submit:** a request copies its template's steps when it's created, so editing a template later never changes requests already in flight. The requester's department and position are copied too.
 - **Audit in the same transaction:** each domain method appends its `AuditLog` entry, and both are saved by a single `SaveChangesAsync`, so a state change and its audit record can't diverge.
-- **Optimistic concurrency:** `ServiceRequests.RowVersion` is a SQL Server `rowversion`. A lost update raises `DbUpdateConcurrencyException`, which becomes `ConcurrencyConflictException`, returned as **409**.
+- **Optimistic concurrency:** `ServiceRequests.RowVersion` is the PostgreSQL `xmin` system column (a `uint` with `IsRowVersion()`). A lost update raises `DbUpdateConcurrencyException`, which becomes `ConcurrencyConflictException`, returned as **409**.
 - **Guid v7 ids, assigned in code:** ids are time-ordered, which is friendly to clustered indexes, and they exist before the first save. EF is told `ValueGeneratedNever()` so that new child rows are inserted, not updated.
 - **Error mapping:** `DomainExceptionHandler` turns exceptions into RFC 9457 ProblemDetails:
 
@@ -148,14 +148,14 @@ Arrows point toward the dependency, and Domain depends on nothing.
 ## Known limitations / trade-offs
 
 - **Senior requesters on department steps:** a senior requester (such as the General Manager) isn't escalated on a department-scoped step they don't hold. A GM's Equipment request is approved first by their own department's Department Head.
-- **Startup migrations are dev-only:** migrations and seeding run at startup only in `Development`. Production would run migrations as a deployment step and never seed demo users.
+- **Startup migrations are dev-only:** migrations and seeding run at startup only in `Development`. A deployed demo would run migrations as a deployment step and never seed demo users.
 - **One position per approver:** each approver holds exactly one position. Acting roles and delegation aren't modelled.
 
 ## Next steps
 
-- An outbound webhook on status changes, using a `BackgroundService` + `Channel<T>` (a transactional outbox in production).
+- An outbound webhook on status changes, using a `BackgroundService` + `Channel<T>` (the transactional outbox, M1-1/M1-2, now covers the reliable-delivery part).
 - Rate limiting on `/api/auth/login`.
-- Integration tests with `WebApplicationFactory` + Testcontainers (SQL Server).
+- Integration tests with `WebApplicationFactory` + Testcontainers (PostgreSQL).
 - An authority ranking, so that senior requesters escalate past junior approvers.
 - Refresh tokens.
 
@@ -168,7 +168,7 @@ This is a .NET rebuild of the workflow core of a Spring Boot portal I built.
 | `@RestController` | `[ApiController]` + `ControllerBase` |
 | Spring DI (`@Service`, constructor injection) | `IServiceCollection` (`AddScoped`/`AddSingleton`) + primary constructors |
 | JPA / Hibernate repositories | EF Core `DbContext` + repository classes |
-| `@Version` | `rowversion` via `IsRowVersion()` |
+| `@Version` | `xmin` via `IsRowVersion()` |
 | Flyway / Liquibase | EF Core migrations (`dotnet ef migrations add`) |
 | `@ControllerAdvice` / `@ExceptionHandler` | `IExceptionHandler` + ProblemDetails |
 | Bean Validation (`@NotBlank`, `@Size`) | DataAnnotations (`[Required]`, `[MaxLength]`), automatic 400 |
@@ -180,7 +180,7 @@ This is a .NET rebuild of the workflow core of a Spring Boot portal I built.
 
 ## Tech stack
 
-.NET 10 · ASP.NET Core · EF Core 10 · SQL Server 2022 · JWT Bearer · Serilog · OpenAPI + Swagger UI · xUnit · NSubstitute · Docker Compose · GitHub Actions
+.NET 10 · ASP.NET Core · EF Core 10 · PostgreSQL 17 · JWT Bearer · Serilog · OpenAPI + Swagger UI · xUnit · NSubstitute · Docker Compose · GitHub Actions
 
 ## Running tests
 

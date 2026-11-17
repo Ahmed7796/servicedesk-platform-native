@@ -13,6 +13,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M0-3 | Write `contracts/openapi/` for the new endpoints of all three services | lead | Files lint cleanly (`contracts/lint.sh`); Ahmed approves the contracts | done |
 | M0-4 | `docker-compose.yml` with SQL Server, PostgreSQL, RabbitMQ, Redis and the C# API | lead | `docker compose up` starts; `/health` returns Healthy | done |
 | M0-5 | Remove the hardcoded connection string (SA password) from `appsettings.Development.json`; local `dotnet run` reads `ConnectionStrings__Default` from the environment or `dotnet user-secrets` | api-dotnet | No password in any tracked file under `servicedesk-api/`; `dotnet run` without the variable fails with a message naming `ConnectionStrings__Default`; `dotnet test` passes; the API still starts in Compose | done |
+| M0-6 | Move `servicedesk-api` from SQL Server to PostgreSQL (decided 2026-11-17, before M1-2): Npgsql provider, `xmin` concurrency token, migrations regenerated for PostgreSQL. The lead moves Compose, `.env.example` and CLAUDE.md to an API-owned PostgreSQL container | api-dotnet + lead | `dotnet test` passes; `docker compose up --build` starts with no SQL Server container and `/health` is Healthy; a submit and an approve write two outbox rows whose bodies pass `contracts/validate.sh`'s ajv check; two concurrent updates to one request return 409 | done |
 
 **Human gate A:** contracts are frozen after M0-3. Later changes to `contracts/` need Ahmed's approval.
 
