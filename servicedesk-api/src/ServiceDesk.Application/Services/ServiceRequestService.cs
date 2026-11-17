@@ -42,6 +42,30 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
         return all.Select(ServiceRequestDto.FromEntity).ToList();
     }
 
+    public async Task<IReadOnlyList<PendingItemDto>> ListPendingForAsync(Guid callerId, CancellationToken ct)
+    {
+        var caller = await users.GetByIdAsync(callerId, ct) ?? throw new NotFoundException($"User {callerId} not found.");
+
+        // Shortcut only: a plain Requester can never decide a step, so skip the query.
+        if (caller.Role != UserRole.Admin && !caller.IsApprover)
+            return [];
+
+        var candidates = await requests.ListPendingCandidatesAsync(caller, ct);
+        var eligible = candidates
+            .Where(r => r.CanDecideCurrentStep(caller)) // the one eligibility rule
+            .OrderBy(r => r.CreatedAt)
+            .ThenBy(r => r.Id)
+            .ToList();
+        if (eligible.Count == 0)
+            return [];
+
+        // One query for all requester names (no N+1).
+        var requesters = await users.ListByIdsAsync(eligible.Select(r => r.RequesterId).Distinct(), ct);
+        var names = requesters.ToDictionary(u => u.Id, u => u.DisplayName);
+
+        return eligible.Select(r => PendingItemDto.From(r, names[r.RequesterId])).ToList();
+    }
+
     public async Task<ServiceRequestDto> ApproveAsync(Guid requestId, Guid approverId, string? comment, CancellationToken ct)
     {
         var request = await requests.GetByIdAsync(requestId, ct) ?? throw new NotFoundException($"Request {requestId} not found.");

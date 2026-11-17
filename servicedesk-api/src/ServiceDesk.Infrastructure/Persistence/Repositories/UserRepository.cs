@@ -27,4 +27,11 @@ public sealed class UserRepository(AppDbContext db) : IUserRepository
             .Where(u => u.Role == UserRole.Admin || (u.Role == UserRole.Approver && u.Position == position))
             .ToListAsync(ct);
     }
+
+    public async Task<IReadOnlyList<User>> ListByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var idList = ids.ToList();
+
+        return await db.Users.AsNoTracking().Where(u => idList.Contains(u.Id)).ToListAsync(ct);
+    }
 }
