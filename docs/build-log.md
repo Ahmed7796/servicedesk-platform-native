@@ -44,7 +44,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - `dotnet ef migrations add` also needs a dummy `Jwt__Key` (startup validates it); nothing connects. Consider a design-time `DbContext` factory so migrations need no env vars.
 - M1-1b brief must cover: `approverUserIds` has `uniqueItems: true` but `OutboxEventFactory` passes the resolver's list through (assert no duplicates); `Cancelled` accepts any `previousStatus` though the schema allows only `Submitted`/`InReview` (test it from both). M1-2: order unsent rows by `OccurredAt`, then `Id`.
 - Consider a `.gitattributes` to pin line endings.
-- `UserRepository.ListApproverCandidatesAsync` (M1-0) has never run against SQL Server; the test project has no database. The M1-2 acceptance run (a real `request.submitted` on the exchange) must confirm `approverUserIds` is filled correctly; name this in the M1-2 brief.
+- `UserRepository.ListApproverCandidatesAsync` (M1-0): first run against SQL Server in the M1-1b compose check (2026-11-16). One submit + one approve gave the right `approverUserIds` (ops.head for step 1, it.manager for step 2), and both outbox bodies pass ajv. The Admin-fallback path has still not run against SQL Server; the M1-2 acceptance run should include a GM-requester case if the seed data allows it.
 
 **Next:** Milestone 1 in order: M1-0, M1-1, M1-2, M1-3, M1-4a, M1-4b, M1-5. All are owned by api-dotnet and run one at a time (ORCHESTRATION.md).
 

@@ -22,6 +22,7 @@ public sealed class ApproverResolver(IUserRepository users)
         return candidates
             .Where(request.CanDecideCurrentStep)
             .Select(u => u.Id)
+            .Distinct() // the event schema requires unique approverUserIds
             .Order()
             .ToList();
     }
