@@ -67,10 +67,27 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M4-1a | #17 | Expo SDK 58 skeleton, three-screen navigation opening on Login, exact pins |
 | M4-1b | #20 | Generated API clients (`@hey-api/openapi-ts`, no default `baseUrl`), required proxy URL with a `ConfigError` view, secure-store token store; `npm test` runs tsc first; 12 tests |
 
+**As of 2026-11-18 (evening), second and third rounds merged.** No PR is open. Main is at `1bd92f8` (PR #31).
+
+| Task | PR | Result |
+|---|---|---|
+| M3-2a | #22 | `get_request` tool: typed pydantic models (`Literal` for closed enums, `str` for position), compact LLM-facing result, errors as tool results; 31 tests |
+| M3-2b | #25 | `get_requester_history` (client-side filter, newest first, cap 1..10), `TOOL_SPECS`, dispatcher; contract-reading test fails instead of skipping; CLAUDE.md copilot test command mounts the whole repo; 74 tests |
+| M4-2a | #23 | Login via generated `login()`, plain-language errors, in-flight ref against double submit, token cleared if navigation fails; `npm run smoke:login` developer check; 26 tests |
+| M4-2b | #26 | Start on PendingApprovals with a stored token; 401 interceptor ends the session once, and only if the failed request used the stored token; 36 tests |
+| M2-2a | #24 | `pending_step` projection (V2 migration) from the six events, guarded by strict `last_event_at < occurredAt`, closed as a tombstone; Testcontainers PostgreSQL; 44 tests |
+| M2-2b | #27 | RabbitMQ listener (`notify.events` on `request.#`, DLQ), Redis de-dup marked after commit, 3 attempts then DLQ, health DOWN until bound; **api now waits for notify healthy in Compose**; 64 tests. M2-2 done |
+| M4-3a | #28 | Pending list from `pending-for-me`, advisory triage summary, pull-to-refresh, request counter against stale responses; fixtures typed with `satisfies`; 50 tests |
+| M4-3b | #29 | Overdue badge (requestId + stepOrder), any overdue failure silent; **only the API's 401 ends the session**; sign-out header button with one retry and a notice if the clear fails; 63 tests |
+| M2-3 | #30 | `GET /notify/overdue` scoped by role; `dueAt = pendingSince + NOTIFY_STEP_SLA` at query time; strict ISO-8601 SLA (startup fails on `24`, `24h`); 88 tests. Job moved to M2-4 |
+| M3-3a | #31 | Agent loop behind `LlmClient` with a fake LLM: ≤ 4 read-only tool rounds, one tool-less final call, strict `TriageSuggestionInput`, typed `post_triage` as the only write; no model/request text in logs; markers can't be rebuilt; 118 tests |
+
 **Dependencies approved by Ahmed (2026-11-18):**
 - notification-service: Spring Boot 4.1.2 starters (web, security, oauth2-resource-server, actuator, jdbc, flyway) with `flyway-database-postgresql` and `postgresql`; test starters. Testcontainers deferred to M2-2.
 - triage-copilot: `fastapi==0.164.0`, `uvicorn==0.54.0`, `httpx==0.28.1`, `pydantic-settings==2.16.3`; dev `pytest==9.2.0` (anyio plugin and `httpx.MockTransport` instead of pytest-asyncio and respx).
-- mobile: Expo 58 / RN 0.88.1 / React 19.3.1, React Navigation 7 (native-stack), screens, safe-area-context, expo-secure-store; dev typescript 6.0.3, jest, jest-expo, Testing Library, `@hey-api/openapi-ts` 0.99.0. No web packages. A mock server is deferred to M4-2.
+- mobile: Expo 58 / RN 0.88.1 / React 19.3.1, React Navigation 7 (native-stack), screens, safe-area-context, expo-secure-store; dev typescript 6.0.3, jest, jest-expo, Testing Library, `@hey-api/openapi-ts` 0.99.0. No web packages. No mock server: M4-2 tests mock `fetch`, and the smoke script hits the real API.
+- notification-service (M2-2): `spring-boot-starter-amqp`, `spring-boot-starter-data-redis` (Boot BOM 4.1.2); test `testcontainers-postgresql`, `testcontainers-junit-jupiter`, `testcontainers-rabbitmq` 2.0.5, `spring-boot-testcontainers`. Redis tests use a plain `redis:7.4-alpine` container.
+- **Not yet approved (asked 2026-11-18):** `google-genai==3.5.0` (M3-3b), `aio-pika==10.2.3` and `redis==8.1.0` (M3-3c), and the Gemini model id (builder proposed `gemini-2.5-flash`, alternative `-flash-lite`; from env `GEMINI_MODEL`).
 
 **Parallel phase mechanics:** one git worktree per service under `.worktrees/` (ignored via `.git/info/exclude`), reused across that service's tasks. Builders don't touch Compose; the lead adds each service and resolves the Compose conflicts when two services land at once.
 
@@ -84,20 +101,30 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 **Decided 2026-11-18**
 - **Approval tiers:** deferred until after M6 (Ahmed). The model and its open questions are in `docs/design/approval-hierarchy.md`; it is not a PLAN.md task.
 - **`position` is a plain string** in the contracts (Ahmed, Gate A re-opened for this change; PR #16). It has a pattern and `maxLength` 30 (the API's column width), and today's five values are kept as `examples`. Consumer rule 4 in `contracts/events/README.md` says to treat it as an opaque label. Every M2/M3/M4 brief carries rule 4.
+- **LLM provider: Google Gemini**, as a trial (Ahmed). One provider only (CLAUDE.md). Key from `GEMINI_API_KEY` (not yet in `.env.example`; add with M3-3b); with no key the copilot starts and skips triage.
+- **Due time (lead, M2-3; the contract had no rule):** one configurable `NOTIFY_STEP_SLA` (strict ISO-8601, default `PT24H`, `PT1M` for demos), no per-position SLAs. The scheduled "newly overdue" job moved to M2-4, its only consumer (cut-list item 3).
+- **Session (lead, M4-3b):** only the API's 401 ends the mobile session; the notification client has no interceptor (the API issues tokens, rule 7, and every list load also calls the API). The M4-5 builder must not add it back for `registerDevice`.
+- **Copilot readiness (lead, M3-3):** no `/ready` endpoint (it isn't in the contract). In M3-3c the consumer writes a marker file after `queue.bind` and a Redis ping succeed; the image HEALTHCHECK requires the marker and `/health` 200, and the api then waits on the copilot in Compose like it does on notify.
 
 **Open decisions for Ahmed**
-- None.
+- **Approve `google-genai==3.5.0`, `aio-pika==10.2.3`, `redis==8.1.0`, and choose the Gemini model.** This is the only blocker on the copilot track (M3-3b, M3-3c), and so on any real suggestion in the demo.
 
-**Next**
-- **In planning (2026-11-18):**
-  - **M2-2:** consumers. The lead scoped it to a current-pending-step-per-request projection (fields from `OverdueStep`, minus due times); M2-3 adds due times and the overdue job.
-  - **M3-2:** request and history tools, with no LLM SDK.
-  - **M4-2:** login.
-  - M2-2 (Testcontainers, AMQP, Redis) and M4-2 (a mock server, if any) bring dependencies for Ahmed to approve.
+**Next (all plan-only first; one builder per service, in parallel)**
+- **M3-3b** (once approved): Gemini adapter behind `LlmClient`; Context7 for the `google-genai` 3.x API (the builder only found 2.x-era docs, so verify against 3.5.0 in the first test run). Map Gemini 429, 5xx and network errors to a dedicated retryable error that `agent.py` turns into `retryable=True`. Final call uses a JSON schema; check Gemini accepts `additionalProperties:false`. Add `GEMINI_API_KEY`/`GEMINI_MODEL` to `.env.example` and Compose.
+- **M3-3c** (after M3-3b): aio-pika consumer, queue `copilot.triage` on `request.submitted` with DLQ `copilot.triage.dlq`, Redis key `processed:copilot:{eventId}` marked after the post succeeds, 3 attempts then DLQ, readiness marker as decided above, FastAPI `lifespan` owns the HTTP client, consumer and Redis. Lead: Compose env, `depends_on`, api waits for copilot healthy. Acceptance: a request submitted through the API gets a triage suggestion.
+- **M2-4:** `POST /notify/devices`, the scheduled "newly overdue" job (V3 migration `overdue_since`, reset on step change), push through Expo behind an interface (faked in tests); TriageService 403. Needs a dependency decision only if an Expo push SDK is proposed (plain HTTP is enough).
+- **M4-4:** request detail with audit trail, approve and reject with a comment; 403 and 409 in plain words. The detail endpoint already returns `auditTrail` (M1-5b). Typed fixtures with `satisfies`.
+- Then M3-4 (evals; Gate B: Ahmed owns the 50 labelled cases), M3-5 (guardrails, canned mode), M4-5 (push on the phone), M5 (proxy and integration).
+
+**Resuming in a new session**
+- Builders are fresh agents per session; the previous session's builder agents are gone. Brief from this summary and the task's hand-offs.
+- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), each on a merged branch; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends.
+- Lead's verification helpers live in the scratchpad and are gone with the session; recreate as needed: a Python 3.12 test runner (`docker run -v "$PWD":/repo -w /repo/triage-copilot python:3.12-slim …`), the OpenAPI-to-JSON-Schema converter (see "How the loop runs now"), and the demo-account login loop (password `ServiceDesk!2026`, seeded in Development only).
 
 **Open follow-ups**
-- **M2-2 and M3-3 (consumers):** declare exchange `servicedesk.events` (topic, durable) before binding a queue; the API declares it only on its first connection. When each consumer binds its queue before reporting healthy, the lead adds `depends_on: <consumer>: condition: service_healthy` to the api in Compose (contracts/events/README.md, Transport).
-- **M3-2/M3-3:** keep `ServiceDeskClient._request` private and expose only typed reads plus the triage post (rule 6). M3-3 creates the HTTP client in the FastAPI `lifespan` and closes it there. Starlette's `httpx2` deprecation warning is left alone (a new dependency).
+- **M3-3:** the M3-3a hand-off lists the copilot follow-ups: snake_case `suggested_route` mislabelled as an extra field in the reason (cosmetic); fullwidth look-alike angle brackets are not collapsed (low value). Starlette's `httpx2` deprecation warning is left alone (a new dependency).
+- **Notify:** a body with no `version` is acked as unsupported rather than dead-lettered; a committed event can be dead-lettered if Redis stays down (replay is a no-op); nothing reads the DLQs yet.
+- **Mobile:** whether Hermes on RN 0.88 provides `Intl.RelativeTimeFormat` is unconfirmed (an absolute-date fallback exists); `configureApi` runs during render (harmless); nothing has run on a device yet.
 - **Mobile:** `npm audit` reports picomatch/minimatch advisories in Expo/Metro build tooling. The only fix offered is a downgrade, so revisit with the next Expo SDK. Replace the placeholder bundle id `dev.servicedesk.mobile` before any store or EAS build. `.env.example`'s proxy URL is a placeholder until M5.
 - **M2 briefs:** an empty `approverUserIds` means "unassigned, tell admins" (contracts/events/README.md). An Admin's `pending-for-me` is usually empty, which matters for the M4-3 screen.
 - **M3 briefs (copilot-python):** use `POST /api/auth/service-token` with `TRIAGE_CLIENT_ID/SECRET` (tokens last 30 min; get a new one on 401). Send real JSON numbers (the API accepts numbers as strings, but don't rely on it) and enum names, never integers.
@@ -132,3 +159,10 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-18 | M3-1 | copilot-python stored the client secret as a plain `str`; pydantic printed it in a missing-field `ValidationError` and in `repr(Settings)`. `SecretStr` alone still leaked it via the error's input dict | Reviewer (reproduced it), then the builder found the second leak while fixing | `SecretStr` plus `hide_input_in_errors=True`, with tests that the value never appears in `str`/`repr` of errors or settings |
 | 2026-11-18 | M2-1 | notify-spring set `management.endpoints.web.exposure.include: ""` believing it turned Actuator off; Boot treats it as unset, so `/actuator/health` answered any valid token. A 16-byte JWT key also started "healthy" and then rejected every request. The lead's compose check only probed `/notify/health` | Reviewer (ran the app and probed `/actuator`) | `/actuator/**` denied in `SecurityConfig` with a test; key length checked at startup. Lead's compose checks now probe the framework's default endpoints too, not only the ones the contract names |
 | 2026-11-18 | M4-1a, M4-1b | mobile-rn removed `~` ranges from `package.json` by hand without regenerating the lockfile; in M4-1b a "missing base URL" test read `process.env`, so it failed whenever the variable was exported | Reviewer, both times | Lockfile regenerated and proven with `rm -rf node_modules && npm ci`; tests that depend on env clear it themselves. Briefs now say `npm install --save-exact` |
+| 2026-11-18 | M2-2b | notify-spring used `spring.rabbitmq.listener.simple.retry.max-attempts`, which Boot 4.1 silently ignores; the default gave 4 attempts, not 3 | The builder's own test asserting exactly 3 calls | `max-retries: 2`, pinned by tests. Retry and similar "silently ignored" settings get a test that counts the effect |
+| 2026-11-18 | M3-2b | The contract-reading test skipped when `contracts/` was missing, and the documented copilot test command mounted only `triage-copilot/`, so the test never ran by default | Lead running the documented command and seeing "1 skipped" | Tests that read shared files fail, not skip; commands mount the whole repo. Same rule applied in notify's contract test (M2-3) |
+| 2026-11-18 | M4-2a, M4-3a | mobile-rn wrote a double-tap test that passed with the guard removed, and fixtures with enum values the contract forbids (`'Software'`, `'Department'`) while the hand-off called them contract-shaped | Reviewer (ran mutations; compared fixtures to the contract) | Every guard gets a "remove it, see a test fail" check recorded in the hand-off; fixtures are typed with `satisfies` against the generated types so tsc rejects bad values |
+| 2026-11-18 | M4-2b, M4-3b | Two session holes: a slow 401 from an old token could log out a newly signed-in session, and a failing token clear on sign-out left the token stored while the user saw Login | Reviewer, both times | A 401 ends the session only if its bearer token is the stored one; sign-out retries the clear and tells the user if it still fails |
+| 2026-11-18 | M2-3 | Spring's `Duration` binding accepted `NOTIFY_STEP_SLA=24` as 24 ms (every step instantly overdue). After the fix, the builder chained the parse error, and Spring's startup report showed only the deepest cause, hiding the message | Reviewer (binding check), then the lead starting the real image in Compose with `24` | Bind as `String`, `Duration.parse`, no chained cause. Check startup failures by starting the image against real dependencies, not with a fake DB host (the DB error hid the SLA error in the lead's first attempt) |
+| 2026-11-18 | M3-3a | copilot-python built the invalid-output reason from pydantic error locations; with `extra="forbid"` the location is the model-chosen key, so a steered model could write PII or fake log lines (newlines included) into logs | Reviewer (reproduced it) | Reasons name only known fields and error types. The lead's later check also caught the marker defang rewriting normal text ("request data"); the angle-bracket collapse alone is enough |
+| 2026-11-18 | lead | The M2-2b builder hit the 5-hour usage limit mid-task; its files were intact and it resumed after the reset | Task notification | Resume the same agent with SendMessage after the reset; check the worktree first |
