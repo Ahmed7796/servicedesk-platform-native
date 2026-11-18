@@ -41,7 +41,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Exception to "never edit a committed migration", authorized by Ahmed:** `InitialCreate` and `AddOutbox` are SQL Server-specific and are deleted and regenerated for PostgreSQL. Safe only because nothing is deployed and there is no data to keep. From M0-6 on, the rule applies again with no exceptions.
 - Verified on compose (lead, 2026-11-17): `InitialPostgres` applies; submit + approve write two outbox rows matching their audit timestamps, both ajv-valid. Racing approve against cancel 15 times gave 14 overlaps: each time exactly one call won, the other got 409 "Concurrency conflict", and the loser's outbox row was rolled back. This closes M1-1b's known limit (rollback on a concurrency conflict untested against a real database).
 
-**As of 2026-11-18, end of Milestone 1.** Everything below is merged except M1-5b (PR open at hand-over); merging it closes Milestone 1.
+**As of 2026-11-18, end of Milestone 1.** Everything below is merged. Milestone 1 is closed; the contract change in PR #16 (`position` as a plain string) is the last thing before Milestones 2 to 4.
 
 | Task | PR | Result |
 |---|---|---|
@@ -55,7 +55,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M1-4a | #12 | `POST /api/auth/service-token`, `TriageService` role, deny-by-default authorization (fallback policy = human roles); Mvc.Testing in-memory HTTP tests; 283 tests |
 | M1-4b | #13 | `POST /api/service-requests/{id}/triage` (own `TriageSuggestions` table, `ON CONFLICT` upsert), `triage` on detail and pending items, integer enums refused API-wide; 332 tests |
 | M1-5a | #14 | `AuditLog.Sequence` numbered by the domain per request (not by insert order: EF sorts inserts by key and v7 Ids are random within a millisecond); unique (ServiceRequestId, Sequence); migration backfills old rows with Submitted ranked first; 340 tests |
-| M1-5b | (open) | `requesterName` and `auditTrail` (ordered by `Sequence`) on `GET {id}`; validates against `ServiceRequestDetail` with ajv on compose; unused `GetByIdAsync` removed; 346 tests |
+| M1-5b | #15 | `requesterName` and `auditTrail` (ordered by `Sequence`) on `GET {id}`; validates against `ServiceRequestDetail` with ajv on compose; unused `GetByIdAsync` removed; 346 tests |
 
 **How the loop runs now** (see ORCHESTRATION.md for the full loop):
 - Lead briefs a fresh api-dotnet agent per task, plan only. Lead approves plans when no new dependency, contract change or rule exception is involved; otherwise Ahmed decides.
@@ -64,13 +64,15 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - Seed data never reaches the Admin fallback (no workflow has a GeneralManager step). Compose checks switch the Leave step to GeneralManager in the throwaway dev DB and wipe it with `docker compose down -v` afterwards.
 - Size: builders' test estimates run 1.5 to 2 times low (see the M1-2a to M1-4b row below). Split at plan time.
 
+**Decided 2026-11-18**
+- **Approval tiers:** deferred until after M6 (Ahmed). The model and its open questions are in `docs/design/approval-hierarchy.md`; it is not a PLAN.md task.
+- **`position` is a plain string** in the contracts (Ahmed, Gate A re-opened for this change; PR #16). It has a pattern and `maxLength` 30 (the API's column width), and today's five values are kept as `examples`. Consumer rule 4 in `contracts/events/README.md` says to treat it as an opaque label. Every M2/M3/M4 brief carries rule 4.
+
 **Open decisions for Ahmed**
-- **Approval tiers** (raised 2026-11-17): the lead recommended holding the refactor until after M6. The suggested model is roles as data with a rank, optional reporting-line steps, and an audited Admin override instead of a final tier. A design note `docs/design/approval-hierarchy.md` was offered but not written.
-- **Loosen `position` in the contracts to a plain string?** This is only cheap before M2-1 starts, because consumers will code against the enum. It needs Gate A approval.
+- None.
 
 **Next**
-- **Before M2-1 starts:** Ahmed decides the `position` question above (it is only cheap now).
-- **Milestones 2 to 4 in parallel** (ORCHESTRATION.md): first tasks M2-1 (notify-spring), M3-1 (copilot-python), M4-1 (mobile-rn). Each brief carries the matching "Open follow-ups" items below.
+- **Milestones 2 to 4 in parallel**, after PR #16 merges (ORCHESTRATION.md): first tasks M2-1 (notify-spring), M3-1 (copilot-python), M4-1 (mobile-rn). Each brief carries the matching "Open follow-ups" items below.
 
 **Open follow-ups**
 - **M2-1 and M3-1 (consumers):** declare exchange `servicedesk.events` (topic, durable) before binding a queue; the API declares it only on its first connection. The lead adds `depends_on: <consumer>: condition: service_healthy` to the api in Compose (contracts/events/README.md, Transport).
@@ -103,3 +105,4 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-18 | M1-5 | api-dotnet's plan used a PostgreSQL identity column as the audit tie-break, on the assumption that rows from one `SaveChanges` are inserted in `Add` order. EF Core sorts inserts within a table by key, and same-millisecond v7 GUIDs sort randomly, so the order would still be unstable. The lead's brief also said "seed data" for what was meant as a compose step, and the builder planned a seed change | Lead checking where audit rows are created and how EF orders insert commands before approving the plan | Domain sets `Sequence` (count + 1) on append; no ordering is left to the database. Briefs say "compose check via the API" when they mean that, not "seed data" |
 | 2026-11-18 | M1-5a | The backfill broke same-timestamp ties by v7 `Id`, which is random within a millisecond, so old Submitted/StepEscalated pairs could be numbered backwards. The lead had seen this and called it a "best guess" note, and the compose check passed because one pair comes out right half the time | Reviewer | Backfill ranks `Submitted` first before `Id`. A check that can pass by chance proves nothing: for ordering, the lead tests enough cases or reasons it through instead of trusting one run |
 | 2026-11-18 | contracts (position) | Lead tacked a `git checkout -- .` "cleanup" onto a validation command, on a branch whose only work was uncommitted contract edits; it would have discarded them | Claude Code's auto-mode permission check denied the command | Never chain a discard command onto a check. Scratch files live in the scratchpad, so there is nothing in the tree to clean up |
+| 2026-11-18 | contracts (position) | Lead changed `approverPosition` in `defs.schema.json` and ran only the contract checks. `OutboxEventFactoryTests` reads that enum from the schema, so 6 API tests failed in CI. The lead's search for schema readers had found the test, but `head -10` cut the output before it. The first draft also allowed `maxLength` 50 while the API's columns are `varchar(30)` | PR #16 CI (Build and test); the length while writing the design note | Any change under `contracts/` also runs `dotnet test` (the API tests read the contract files). Never truncate a search whose purpose is finding every use. Test now reads `examples` and checks the pattern; a mutation (dropping `ItManager` from `examples`) fails 3 cases |
