@@ -1,4 +1,4 @@
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 20.0
     triage_max_tool_rounds: int = 4
     triage_total_timeout_seconds: float = 60.0
+
+    @field_validator("gemini_api_key", mode="before")
+    @classmethod
+    def _blank_key_is_no_key(cls, value):
+        # Compose passes GEMINI_API_KEY= (empty) by default; that must mean "no key", not a key of "".
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 def get_settings() -> Settings:

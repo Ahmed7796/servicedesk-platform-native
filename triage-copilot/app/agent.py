@@ -12,7 +12,7 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from app.config import Settings
-from app.errors import ApiForbiddenError, ApiResponseError, ApiUnavailableError, ServiceAuthError
+from app.errors import ApiForbiddenError, ApiResponseError, ApiUnavailableError, LlmRetryableError, ServiceAuthError
 from app.llm import LlmClient, Turn
 from app.models import TriageSuggestionInput
 from app.prompt import SYSTEM, user_prompt, wrap_data
@@ -61,6 +61,8 @@ async def triage(request_id: str, llm: LlmClient, tools: TriageTools, client: Se
         return _outcome(request_id, "timed_out", "llm call timeout", retryable=True)
     except TimeoutError:
         return _outcome(request_id, "timed_out", "overall timeout", retryable=True)
+    except LlmRetryableError:
+        return _outcome(request_id, "failed", "llm unavailable", retryable=True)
     except ApiUnavailableError:
         return _outcome(request_id, "failed", "ServiceDesk API unavailable", retryable=True)
     except (ApiForbiddenError, ServiceAuthError, ApiResponseError) as exc:

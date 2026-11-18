@@ -187,3 +187,15 @@ async def test_failures_log_no_secret_or_request_text(tools, client, stub, caplo
     assert caplog.records and RID in caplog.text
     for secret in (KEY, "s3cret-value", "tok-", SENTINEL):
         assert secret not in caplog.text and secret not in out.reason
+
+
+async def test_retryable_llm_error_is_retryable_and_posts_nothing(tools, client, stub):
+    from app.errors import LlmRetryableError
+    out = await run(FakeLlm(step_error=LlmRetryableError("gemini status 429")), tools, client)
+    assert (out.status, out.reason, out.retryable) == ("failed", "llm unavailable", True)
+    assert stub.calls == []
+
+
+async def test_other_llm_errors_stay_non_retryable(tools, client, stub):
+    out = await run(FakeLlm(step_error=RuntimeError("x")), tools, client)
+    assert (out.status, out.retryable) == ("failed", False)

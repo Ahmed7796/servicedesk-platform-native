@@ -12,3 +12,7 @@ class ApiForbiddenError(Exception):
 
 class ApiResponseError(Exception):
     """The ServiceDesk API answered, but not with the shape the contract promises."""
+
+
+class LlmRetryableError(Exception):
+    """The model provider failed in a way worth retrying later: 429, 5xx, network or timeout."""
