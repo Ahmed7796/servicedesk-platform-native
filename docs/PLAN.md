@@ -38,8 +38,8 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 |---|---|---|---|---|
 | M2-1 | Spring Boot skeleton, PostgreSQL migrations, JWT validation, health endpoint | notify-spring | `./mvnw test` passes; service starts in Compose | todo |
 | M2-2 | Consumers for the six events with Redis de-duplication | notify-spring | Replaying the same event twice changes the tables once | done |
-| M2-3 | Pending-step table with due times; scheduled overdue job | notify-spring | A step past its due time appears in `GET /notify/overdue`; a `TriageService` token gets 403 | todo |
-| M2-4 | `POST /notify/devices` and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted`; a `TriageService` token gets 403 on `POST /notify/devices` | todo |
+| M2-3 | Due times on pending steps (`dueAt` = `pendingSince` + `NOTIFY_STEP_SLA`, default `PT24H`) and `GET /notify/overdue` scoped by role. The scheduled overdue job moved to M2-4 (only push needs it) | notify-spring | A step past its due time appears in `GET /notify/overdue`; a `TriageService` token gets 403 | todo |
+| M2-4 | `POST /notify/devices`, a scheduled job that marks steps newly overdue (once per step), and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted`; a `TriageService` token gets 403 on `POST /notify/devices` | todo |
 
 ## Milestone 3: Triage copilot (days 6 to 8)
 
@@ -89,7 +89,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 
 1. M6-4 deployment (do it the week after)
 2. M4-5 push on the phone (keep the overdue list)
-3. M2-3 overdue job
+3. M2-4 overdue job (moved from M2-3; the overdue list itself stays)
 4. M3-2 requester-history tool
 
 Never cut: the outbox, the eval set, the demo recording.

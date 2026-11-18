@@ -10,6 +10,8 @@ spring:
   datasource:
     password: unused
 app:
+  notify:
+    step-sla: PT1H
   messaging:
     enabled: false
   jwt:

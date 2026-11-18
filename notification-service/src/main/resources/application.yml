@@ -32,6 +32,8 @@ spring:
       fail-on-unknown-properties: false
 
 app:
+  notify:
+    step-sla: ${NOTIFY_STEP_SLA:PT24H}   # ISO-8601; dueAt = pendingSince + this (PT1M for a demo)
   messaging:
     enabled: true   # false only in the offline "test" profile
   jwt:
