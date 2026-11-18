@@ -55,6 +55,7 @@ Escalation (a step moved to GeneralManager because the requester holds its posit
 1. **De-duplicate on `eventId`.** Delivery is at-least-once. Record processed IDs in Redis and ignore repeats (CLAUDE.md, rule 5).
 2. **Ignore unknown fields.** Consumers must accept and ignore fields they do not recognise, at any level of the message. This makes adding an optional field a non-breaking change that does not bump `version`. Do not configure deserialisers to fail on unknown properties (in Spring/Jackson, keep `FAIL_ON_UNKNOWN_PROPERTIES` off; in Pydantic, do not use `extra="forbid"` on event models).
 3. **Check `type` and `version`.** Handle the versions you know; log and skip any others.
+4. **Treat `position` as an opaque label.** It is a plain string, not an enum (`defs.schema.json`, `approverPosition`). Today's values are `DepartmentHead`, `ItManager`, `HrManager`, `FinanceManager` and `GeneralManager`, but a new value is not a breaking change and does not bump `version`. Do not map it to a closed enum that fails on an unknown value (in Java, keep it a `String`; in Pydantic, a `str`). Any per-position behaviour, such as a display name, needs a fallback for unknown values, e.g. showing the raw string.
 
 The schemas themselves use `additionalProperties: false`. They are strict for the **producer**, so that a misspelled field fails validation in the API's tests. Rule 2 is about **consumers**, which must be lenient.
 

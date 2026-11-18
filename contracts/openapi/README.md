@@ -12,7 +12,7 @@ Lint with `../lint.sh` (Spectral 6.17.0, `spectral:oas` rules, fails on warnings
 
 ## Shared types
 
-Enums (`RequestType`, `RequestStatus`, `ApproverPosition`, `ApprovalScope`, `StepDecision`, `AuditAction`) are `$ref`s to `../events/defs.schema.json`, so the HTTP and event contracts cannot drift apart. They are the C# enum names, as strings. A code generator must resolve external refs (bundle first if it does not).
+Enums (`RequestType`, `RequestStatus`, `ApprovalScope`, `StepDecision`, `AuditAction`) are `$ref`s to `../events/defs.schema.json`, so the HTTP and event contracts cannot drift apart. They are the C# enum names, as strings. `ApproverPosition` is also defined there but is a plain string, not an enum, so that new positions are not a breaking change; clients treat it as an opaque label (`../events/README.md`, Rules for consumers, rule 4). A code generator must resolve external refs (bundle first if it does not).
 
 ## These files, not `/openapi/v1.json`
 
