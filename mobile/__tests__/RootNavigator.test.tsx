@@ -30,6 +30,7 @@ describe('RootNavigator', () => {
     await renderApp();
     expect(await screen.findByTestId('pending-approvals-screen')).toBeTruthy();
     expect(screen.queryByTestId('login-screen')).toBeNull();
+    expect(screen.getByTestId('sign-out')).toBeTruthy(); // header button on PendingApprovals
   });
 
   it('starts on Login when no token is stored', async () => {

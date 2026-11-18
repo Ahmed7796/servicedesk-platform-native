@@ -4,6 +4,27 @@ import { tokenStore } from './tokenStore';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
+const SIGN_OUT_FAILED = "Couldn't remove your sign-in from this phone. Sign in and sign out again to retry.";
+
+/**
+ * The user chose to sign out: clear the token (one retry), then go back to Login. If the token
+ * still cannot be cleared, Login shows a notice. Never rejects.
+ */
+export async function signOut(): Promise<void> {
+  let cleared = false;
+  for (let attempt = 0; attempt < 2 && !cleared; attempt++) {
+    try {
+      await tokenStore.clear();
+      cleared = true;
+    } catch {
+      // retry once, then report on Login
+    }
+  }
+  if (navigationRef.isReady()) {
+    navigationRef.reset({ index: 0, routes: [{ name: 'Login', params: cleared ? undefined : { notice: SIGN_OUT_FAILED } }] });
+  }
+}
+
 let inFlight: Promise<void> | null = null;
 
 async function endSession(failedToken: string | null): Promise<void> {

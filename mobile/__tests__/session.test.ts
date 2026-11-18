@@ -6,7 +6,7 @@ jest.mock('expo-secure-store', () => ({
 }));
 import { configureApi } from '../src/api/config';
 import { login, listPendingForMe, listServiceRequests } from '../src/api/generated/servicedesk';
-import { getHealth } from '../src/api/generated/notification';
+import { listOverdue } from '../src/api/generated/notification';
 import { handleUnauthorized, navigationRef } from '../src/auth/session';
 import { client as apiClient } from '../src/api/generated/servicedesk/client.gen';
 import { client as notifyClient } from '../src/api/generated/notification/client.gen';
@@ -51,6 +51,13 @@ describe('401 session handling', () => {
     expect(reset).not.toHaveBeenCalled();
   });
 
+  it('a 401 from the notification service does not end the session', async () => {
+    fetchMock.mockImplementation(respond(401));
+    await listOverdue();
+    expect(await tokenStore.get()).toBe('old-token');
+    expect(reset).not.toHaveBeenCalled();
+  });
+
   it('other statuses (403, 409) do not end the session', async () => {
     fetchMock.mockImplementation(respond(403));
     await listPendingForMe();
@@ -60,9 +67,9 @@ describe('401 session handling', () => {
     expect(reset).not.toHaveBeenCalled();
   });
 
-  it('parallel 401s, across both clients, reset once', async () => {
+  it('parallel 401s reset once', async () => {
     fetchMock.mockImplementation(respond(401));
-    await Promise.all([listPendingForMe(), listPendingForMe(), getHealth()]);
+    await Promise.all([listPendingForMe(), listServiceRequests(), listServiceRequests()]);
     expect(reset).toHaveBeenCalledTimes(1);
     // A late 401 after sign-out finds no token and does nothing more.
     await listPendingForMe();
@@ -76,7 +83,7 @@ describe('401 session handling', () => {
       request.url.endsWith('/pending-for-me') ? new Promise<Response>((r) => (finishSlow = r)) : respond(401)(),
     );
     const slow = listPendingForMe();
-    await Promise.all([listServiceRequests(), listServiceRequests(), getHealth()]);
+    await Promise.all([listServiceRequests(), listServiceRequests(), listServiceRequests()]);
     expect(reset).toHaveBeenCalledTimes(1);
 
     await tokenStore.set('new-token'); // signed in again
@@ -90,8 +97,7 @@ describe('401 session handling', () => {
   it('configureApi called again replaces the handler instead of stacking another', () => {
     configureApi('http://proxy.test', tokenStore.get, handleUnauthorized);
     configureApi('http://proxy.test', tokenStore.get, handleUnauthorized);
-    for (const c of [apiClient, notifyClient]) {
-      expect(c.interceptors.response.fns.filter(Boolean)).toHaveLength(1);
-    }
+    expect(apiClient.interceptors.response.fns.filter(Boolean)).toHaveLength(1);
+    expect(notifyClient.interceptors.response.fns.filter(Boolean)).toHaveLength(0); // only the API ends the session
   });
 });

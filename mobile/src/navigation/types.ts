@@ -1,5 +1,5 @@
 export type RootStackParamList = {
-  Login: undefined;
+  Login: { notice?: string } | undefined;
   PendingApprovals: undefined;
   RequestDetail: { requestId: string };
 };

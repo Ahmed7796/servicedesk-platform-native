@@ -18,9 +18,9 @@ function json(status: number, body: unknown, contentType = 'application/json'): 
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': contentType } });
 }
 
-async function renderScreen() {
+async function renderScreen(params?: { notice?: string }) {
   const navigation = { replace } as never;
-  await render(<LoginScreen navigation={navigation} route={{ key: 'k', name: 'Login' }} />);
+  await render(<LoginScreen navigation={navigation} route={{ key: 'k', name: 'Login', params }} />);
 }
 
 async function fill(identifier = 'requester@servicedesk.local', password = 'pw') {
@@ -144,5 +144,15 @@ describe('LoginScreen', () => {
     expect(text).toBe('Something went wrong. Please try again.');
     expect(SecureStore.deleteItemAsync).toHaveBeenCalled();
     expect(screen.getByTestId('login-submit').props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('shows the notice passed by a failed sign-out, and none otherwise', async () => {
+    await renderScreen({ notice: "Couldn't remove your sign-in from this phone. Sign in and sign out again to retry." });
+    expect(screen.getByTestId('login-notice').props.children).toBe("Couldn't remove your sign-in from this phone. Sign in and sign out again to retry.");
+  });
+
+  it('shows no notice by default', async () => {
+    await renderScreen();
+    expect(screen.queryByTestId('login-notice')).toBeNull();
   });
 });

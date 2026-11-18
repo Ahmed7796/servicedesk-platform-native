@@ -16,7 +16,7 @@ const DEMO_ACCOUNTS = [
   'admin@servicedesk.local',
 ];
 
-export function LoginScreen({ navigation }: Props) {
+export function LoginScreen({ navigation, route }: Props) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
@@ -55,6 +55,11 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <View testID="login-screen" style={styles.container}>
+      {route.params?.notice ? (
+        <Text testID="login-notice" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
+          {route.params.notice}
+        </Text>
+      ) : null}
       <Text style={styles.label}>Email or employee number</Text>
       <TextInput
         testID="login-identifier"
