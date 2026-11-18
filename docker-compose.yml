@@ -99,6 +99,22 @@ services:
       retries: 5
       start_period: 20s
 
+  notify:
+    build:
+      context: ./notification-service
+    ports:
+      - "8081:8081"   # the phone reaches it through the proxy's /notify route (rule 8, M5)
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/notify
+      DB_USER: notify
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set. Copy .env.example to .env and fill it in.}
+      # Same signing key as the api (rule 7); issuer and audience use the service's defaults (ServiceDesk, ServiceDesk.Api).
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is not set. Copy .env.example to .env and set it (openssl rand -base64 32).}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Health check comes from the image (notification-service/Dockerfile, curl on /notify/health).
+
 volumes:
   api-db-data:
   pg-data:
