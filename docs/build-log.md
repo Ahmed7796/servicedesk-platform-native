@@ -44,7 +44,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 **Open follow-ups**
 - An API container health check, with M1-2 (see `docs/handoffs/M0-4.md`).
 - The generated `/openapi/v1.json` types enums as integers (api-dotnet; no task yet).
-- `.env.example` needs the triage client ID and secret with the M1-4a brief.
+- `.env.example` has the triage client ID and secret (M1-4a, done).
 - `validate.sh`, `lint.sh` and `docker compose up` don't run in CI.
 - `ASPNETCORE_ENVIRONMENT=Development` in Compose must be revisited before M6-4.
 - `dotnet ef` and local `dotnet run` now need `ConnectionStrings__Default` or user-secrets (a README line in M6-1).
@@ -71,3 +71,4 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-16 | M1-1 | Lead briefed M1-1 as one task; the builder's plan came to ~770 lines (code + tests), over the 300-line rule, and the builder only planned to stop if production code passed 300 | Lead adding up the line counts in the plan before approving it | Lead totals code + tests in every plan before approval; M1-1 split into M1-1a / M1-1b |
 | 2026-11-17 | M0-2 | Lead's event contract defined message bodies but no transport (exchange, routing keys, message properties, delivery guarantee), although three services must agree on it | Lead preparing the M1-2 brief, before any publisher code | Transport section added to `contracts/events/README.md` (approved by Ahmed). A contract between services names the wire details, not only the payload |
 | 2026-11-17 | M1-2b | Lead wrote an acceptance clause ("a GeneralManager requester's event lists Admins") that seeded data cannot reach: no seeded workflow has a GeneralManager step, the same gap logged for M0-2 | Lead checking `DbSeeder` and `EscalationPolicy` before the compose run | Lead ran it by switching the Leave step to GeneralManager in the throwaway dev database (wiped afterwards). Before writing an acceptance clause, the lead names the seeded data or setup that reaches it |
+| 2026-11-17 | M1-4a | Lead told Ahmed both triage variables were in `.env` after checking only `TRIAGE_CLIENT_SECRET`; `TRIAGE_CLIENT_ID` was missing and the first compose run never started | The compose run itself (interpolation error), and the reviewer's `docker compose config -q` | Lead checks every new variable with `docker compose config -q` before saying the environment is ready |

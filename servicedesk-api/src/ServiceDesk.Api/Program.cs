@@ -23,6 +23,7 @@ builder.Services.AddOutboxPublisher(builder.Configuration); // needs RabbitMq__*
 // Api
 builder.Services.AddApiControllers();
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddServiceClients(builder.Configuration);
 builder.Services.AddOpenApiWithBearer();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
@@ -36,7 +37,7 @@ if (app.Environment.IsDevelopment())
     await db.Database.MigrateAsync();
     await DbSeeder.SeedAsync(db);
 
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous(); // the fallback policy would otherwise require a token
     app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "ServiceDesk API v1"));
 }
 else
@@ -52,7 +53,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous(); // container probe has no token
 
 await app.RunAsync();
 return 0;
+
+// Makes the generated entry point visible to WebApplicationFactory<Program> in the tests.
+public partial class Program;
