@@ -34,6 +34,9 @@ spring:
 app:
   notify:
     step-sla: ${NOTIFY_STEP_SLA:PT24H}   # ISO-8601; dueAt = pendingSince + this (PT1M for a demo)
+    push:
+      enabled: ${NOTIFY_PUSH_ENABLED:true}   # false turns sending off
+      url: ${EXPO_PUSH_URL:https://exp.host/--/api/v2/push/send}
   messaging:
     enabled: true   # false only in the offline "test" profile
   jwt:

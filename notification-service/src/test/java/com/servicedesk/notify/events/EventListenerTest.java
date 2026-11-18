@@ -14,6 +14,10 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import com.servicedesk.notify.push.PendingNotice;
+import com.servicedesk.notify.push.PushNotifier;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +34,9 @@ class EventListenerTest {
 
     ProjectionHandler handler = mock(ProjectionHandler.class);
     ProcessedEventStore store = mock(ProcessedEventStore.class);
-    EventListener listener = new EventListener(JsonMapper.builder().build(), store, handler);
+    PushNotifier notifier = mock(PushNotifier.class);
+    EventListener listener = new EventListener(JsonMapper.builder().build(), store, handler, notifier);
+    PendingNotice notice = new PendingNotice(UUID.randomUUID(), "request.submitted", "t", List.of());
 
     static String example() throws Exception {
         return Files.readString(Path.of("../contracts/events/examples/request.submitted.json"));
@@ -43,6 +49,54 @@ class EventListenerTest {
     @BeforeEach
     void notProcessedYet() {
         when(store.isProcessed(any())).thenReturn(false);
+        when(handler.handle(any())).thenReturn(Optional.of(notice));
+    }
+
+    @Test
+    void pushHappensAfterTheCommitAndBeforeTheMark() throws Exception {
+        listener.onMessage(message(example()));
+
+        InOrder order = inOrder(handler, notifier, store);
+        order.verify(handler).handle(any());
+        order.verify(notifier).notifyPending(notice);
+        order.verify(store).markProcessed(EVENT_ID);
+    }
+
+    @Test
+    void nothingAppliedMeansNoPushButStillMarked() throws Exception {
+        when(handler.handle(any())).thenReturn(Optional.empty());
+
+        listener.onMessage(message(example()));
+
+        verifyNoInteractions(notifier);
+        verify(store).markProcessed(EVENT_ID);
+    }
+
+    @Test
+    void alreadyProcessedEventDoesNotPush() throws Exception {
+        when(store.isProcessed(EVENT_ID)).thenReturn(true);
+
+        listener.onMessage(message(example()));
+
+        verifyNoInteractions(notifier);
+    }
+
+    @Test
+    void failedHandlerDoesNotPush() throws Exception {
+        doThrow(new IllegalStateException("db down")).when(handler).handle(any());
+
+        assertThatThrownBy(() -> listener.onMessage(message(example()))).isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(notifier);
+    }
+
+    @Test
+    void notifierFailureDoesNotStopTheMark() throws Exception {
+        doThrow(new IllegalStateException("push broke")).when(notifier).notifyPending(any());
+
+        listener.onMessage(message(example()));
+
+        verify(store).markProcessed(EVENT_ID);
     }
 
     @Test

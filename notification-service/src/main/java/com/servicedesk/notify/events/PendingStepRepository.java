@@ -22,8 +22,9 @@ public class PendingStepRepository {
         this.jdbc = jdbc;
     }
 
-    public void upsertSubmitted(UUID requestId, String title, UUID requesterId, StepInfo step, Instant at) {
-        jdbc.sql("""
+    /** Returns rows changed (0 = a repeat or older event). */
+    public int upsertSubmitted(UUID requestId, String title, UUID requesterId, StepInfo step, Instant at) {
+        return jdbc.sql("""
                 INSERT INTO pending_step
                     (request_id, title, requester_id, step_order, position, assigned_user_ids,
                      pending_since, last_event_at, closed)
@@ -40,6 +41,11 @@ public class PendingStepRepository {
                 .param("stepOrder", step.order()).param("position", step.position())
                 .param("assigned", arrayLiteral(step.approversOrEmpty())).param("at", ts(at))
                 .update();
+    }
+
+    public String titleOf(UUID requestId) {
+        return jdbc.sql("SELECT title FROM pending_step WHERE request_id = :id")
+                .param("id", requestId).query(String.class).optional().orElse("");
     }
 
     /** Moves an open row to the next step. Returns rows changed (0 = no row, closed, or stale). */
