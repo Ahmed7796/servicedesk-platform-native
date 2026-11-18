@@ -57,8 +57,25 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M1-5a | #14 | `AuditLog.Sequence` numbered by the domain per request (not by insert order: EF sorts inserts by key and v7 Ids are random within a millisecond); unique (ServiceRequestId, Sequence); migration backfills old rows with Submitted ranked first; 340 tests |
 | M1-5b | #15 | `requesterName` and `auditTrail` (ordered by `Sequence`) on `GET {id}`; validates against `ServiceRequestDetail` with ajv on compose; unused `GetByIdAsync` removed; 346 tests |
 
+**As of 2026-11-18, Milestones 2 to 4 under way in parallel.** First round merged:
+
+| Task | PR | Result |
+|---|---|---|
+| contracts | #16 | `approverPosition` is a plain string (pattern, `maxLength` 30, five `examples`); consumer rule 4; approval-tiers design note |
+| M3-1 | #18 | FastAPI skeleton, `/health`, service-token client (cache, refresh 60 s early, one retry on 401, secret as `SecretStr` with `hide_input_in_errors`); `copilot` in Compose; 17 tests |
+| M2-1 | #19 | Spring Boot 4.1.2 skeleton: HS256-pinned JWT validation (key ≥ 32 bytes, `exp` required), `/notify/health` per contract, `/actuator/**` denied, Flyway baseline; `notify` in Compose; 28 tests |
+| M4-1a | #17 | Expo SDK 58 skeleton, three-screen navigation opening on Login, exact pins |
+| M4-1b | #20 | Generated API clients (`@hey-api/openapi-ts`, no default `baseUrl`), required proxy URL with a `ConfigError` view, secure-store token store; `npm test` runs tsc first; 12 tests |
+
+**Dependencies approved by Ahmed (2026-11-18):**
+- notification-service: Spring Boot 4.1.2 starters (web, security, oauth2-resource-server, actuator, jdbc, flyway) with `flyway-database-postgresql` and `postgresql`; test starters. Testcontainers deferred to M2-2.
+- triage-copilot: `fastapi==0.164.0`, `uvicorn==0.54.0`, `httpx==0.28.1`, `pydantic-settings==2.16.3`; dev `pytest==9.2.0` (anyio plugin and `httpx.MockTransport` instead of pytest-asyncio and respx).
+- mobile: Expo 58 / RN 0.88.1 / React 19.3.1, React Navigation 7 (native-stack), screens, safe-area-context, expo-secure-store; dev typescript 6.0.3, jest, jest-expo, Testing Library, `@hey-api/openapi-ts` 0.99.0. No web packages. A mock server is deferred to M4-2.
+
+**Parallel phase mechanics:** one git worktree per service under `.worktrees/` (ignored via `.git/info/exclude`), reused across that service's tasks. Builders don't touch Compose; the lead adds each service and resolves the Compose conflicts when two services land at once.
+
 **How the loop runs now** (see ORCHESTRATION.md for the full loop):
-- Lead briefs a fresh api-dotnet agent per task, plan only. Lead approves plans when no new dependency, contract change or rule exception is involved; otherwise Ahmed decides.
+- Lead briefs a fresh builder per task, plan only. Lead approves plans when no new dependency, contract change or rule exception is involved; otherwise Ahmed decides.
 - Lead verifies every task in compose against real PostgreSQL/RabbitMQ with seeded users, and validates JSON with ajv. OpenAPI component schemas are converted to JSON Schema by a short script (wrap `components.schemas` as `$defs`, rewrite `#/components/schemas/` to `#/$defs/` and `../events/defs.schema.json` to that file's `$id`, pass it with `-r`). Run one negative case (drop a required key) so a pass means something; `jsonschema` is not installed.
 - Migrations that touch existing rows are checked by starting `main` in a `git worktree` under the same compose project name, writing data, then rebuilding only `api` from the branch.
 - Seed data never reaches the Admin fallback (no workflow has a GeneralManager step). Compose checks switch the Leave step to GeneralManager in the throwaway dev DB and wipe it with `docker compose down -v` afterwards.
@@ -72,10 +89,16 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - None.
 
 **Next**
-- **Milestones 2 to 4 in parallel**, after PR #16 merges (ORCHESTRATION.md): first tasks M2-1 (notify-spring), M3-1 (copilot-python), M4-1 (mobile-rn). Each brief carries the matching "Open follow-ups" items below.
+- **In planning (2026-11-18):**
+  - **M2-2:** consumers. The lead scoped it to a current-pending-step-per-request projection (fields from `OverdueStep`, minus due times); M2-3 adds due times and the overdue job.
+  - **M3-2:** request and history tools, with no LLM SDK.
+  - **M4-2:** login.
+  - M2-2 (Testcontainers, AMQP, Redis) and M4-2 (a mock server, if any) bring dependencies for Ahmed to approve.
 
 **Open follow-ups**
-- **M2-1 and M3-1 (consumers):** declare exchange `servicedesk.events` (topic, durable) before binding a queue; the API declares it only on its first connection. The lead adds `depends_on: <consumer>: condition: service_healthy` to the api in Compose (contracts/events/README.md, Transport).
+- **M2-2 and M3-3 (consumers):** declare exchange `servicedesk.events` (topic, durable) before binding a queue; the API declares it only on its first connection. When each consumer binds its queue before reporting healthy, the lead adds `depends_on: <consumer>: condition: service_healthy` to the api in Compose (contracts/events/README.md, Transport).
+- **M3-2/M3-3:** keep `ServiceDeskClient._request` private and expose only typed reads plus the triage post (rule 6). M3-3 creates the HTTP client in the FastAPI `lifespan` and closes it there. Starlette's `httpx2` deprecation warning is left alone (a new dependency).
+- **Mobile:** `npm audit` reports picomatch/minimatch advisories in Expo/Metro build tooling. The only fix offered is a downgrade, so revisit with the next Expo SDK. Replace the placeholder bundle id `dev.servicedesk.mobile` before any store or EAS build. `.env.example`'s proxy URL is a placeholder until M5.
 - **M2 briefs:** an empty `approverUserIds` means "unassigned, tell admins" (contracts/events/README.md). An Admin's `pending-for-me` is usually empty, which matters for the M4-3 screen.
 - **M3 briefs (copilot-python):** use `POST /api/auth/service-token` with `TRIAGE_CLIENT_ID/SECRET` (tokens last 30 min; get a new one on 401). Send real JSON numbers (the API accepts numbers as strings, but don't rely on it) and enum names, never integers.
 - **Local dev:** `dotnet run` and `dotnet ef migrations add` need `ConnectionStrings__Default`, `Jwt__Key`, `RabbitMq__Host/User/Password` and `ServiceClients__Triage__ClientId/ClientSecret` (secret at least 32 characters); dummy values are enough for `ef`. Consider a design-time `DbContext` factory. README line in M6-1.
@@ -106,3 +129,6 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-18 | M1-5a | The backfill broke same-timestamp ties by v7 `Id`, which is random within a millisecond, so old Submitted/StepEscalated pairs could be numbered backwards. The lead had seen this and called it a "best guess" note, and the compose check passed because one pair comes out right half the time | Reviewer | Backfill ranks `Submitted` first before `Id`. A check that can pass by chance proves nothing: for ordering, the lead tests enough cases or reasons it through instead of trusting one run |
 | 2026-11-18 | contracts (position) | Lead tacked a `git checkout -- .` "cleanup" onto a validation command, on a branch whose only work was uncommitted contract edits; it would have discarded them | Claude Code's auto-mode permission check denied the command | Never chain a discard command onto a check. Scratch files live in the scratchpad, so there is nothing in the tree to clean up |
 | 2026-11-18 | contracts (position) | Lead changed `approverPosition` in `defs.schema.json` and ran only the contract checks. `OutboxEventFactoryTests` reads that enum from the schema, so 6 API tests failed in CI. The lead's search for schema readers had found the test, but `head -10` cut the output before it. The first draft also allowed `maxLength` 50 while the API's columns are `varchar(30)` | PR #16 CI (Build and test); the length while writing the design note | Any change under `contracts/` also runs `dotnet test` (the API tests read the contract files). Never truncate a search whose purpose is finding every use. Test now reads `examples` and checks the pattern; a mutation (dropping `ItManager` from `examples`) fails 3 cases |
+| 2026-11-18 | M3-1 | copilot-python stored the client secret as a plain `str`; pydantic printed it in a missing-field `ValidationError` and in `repr(Settings)`. `SecretStr` alone still leaked it via the error's input dict | Reviewer (reproduced it), then the builder found the second leak while fixing | `SecretStr` plus `hide_input_in_errors=True`, with tests that the value never appears in `str`/`repr` of errors or settings |
+| 2026-11-18 | M2-1 | notify-spring set `management.endpoints.web.exposure.include: ""` believing it turned Actuator off; Boot treats it as unset, so `/actuator/health` answered any valid token. A 16-byte JWT key also started "healthy" and then rejected every request. The lead's compose check only probed `/notify/health` | Reviewer (ran the app and probed `/actuator`) | `/actuator/**` denied in `SecurityConfig` with a test; key length checked at startup. Lead's compose checks now probe the framework's default endpoints too, not only the ones the contract names |
+| 2026-11-18 | M4-1a, M4-1b | mobile-rn removed `~` ranges from `package.json` by hand without regenerating the lockfile; in M4-1b a "missing base URL" test read `process.env`, so it failed whenever the variable was exported | Reviewer, both times | Lockfile regenerated and proven with `rm -rf node_modules && npm ci`; tests that depend on env clear it themselves. Briefs now say `npm install --save-exact` |
