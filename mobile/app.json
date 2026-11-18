@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "ServiceDesk",
+    "slug": "servicedesk-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "android": { "package": "dev.servicedesk.mobile" },
+    "ios": { "bundleIdentifier": "dev.servicedesk.mobile" },
+    "plugins": ["expo-secure-store"]
+  }
+}

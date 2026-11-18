@@ -57,7 +57,8 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 
 | ID | Task | Owner | Acceptance check | Status |
 |---|---|---|---|---|
-| M4-1 | Expo project, navigation, API client generated from the OpenAPI files, token storage | mobile-rn | App builds and reaches the login screen | todo |
+| M4-1a | Expo project (SDK 58, strict TypeScript), navigation with the three screens (Login first, two placeholders) | mobile-rn | `npm test` shows the app opens on Login; `npx tsc --noEmit` and `npx expo export --platform android` succeed | todo |
+| M4-1b | API client generated from the OpenAPI files, required proxy base URL (`EXPO_PUBLIC_API_BASE_URL`, no default), token storage in secure store. Depends on M4-1a | mobile-rn | Regenerating the client gives no diff; a missing base URL shows a configuration error; `position` stays a plain string in the generated types | todo |
 | M4-2 | Login screen | mobile-rn | Demo accounts can sign in; wrong password shows an error | todo |
 | M4-3 | Pending approvals list with overdue badge and copilot summary | mobile-rn | List matches `pending-for-me` for the signed-in user | todo |
 | M4-4 | Request detail with audit trail, approve and reject with comment | mobile-rn | Approving on the phone moves the request to the next step; 403 and 409 show clear messages | todo |
