@@ -62,7 +62,8 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M4-1b | API client generated from the OpenAPI files, required proxy base URL (`EXPO_PUBLIC_API_BASE_URL`, no default), token storage in secure store. Depends on M4-1a | mobile-rn | Regenerating the client gives no diff; a missing base URL shows a configuration error; `position` stays a plain string in the generated types | todo |
 | M4-2a | Login screen: generated `login()`, token stored, plain-language errors, no double submit; `npm run smoke:login` developer check | mobile-rn | Demo accounts can sign in; wrong password shows an error | todo |
 | M4-2b | Start on PendingApprovals when a token is stored; on 401 from any non-login call, clear the token and return to Login. Depends on M4-2a | mobile-rn | A stored token opens PendingApprovals; an expired token returns to Login | todo |
-| M4-3 | Pending approvals list with overdue badge and copilot summary | mobile-rn | List matches `pending-for-me` for the signed-in user | todo |
+| M4-3a | Pending approvals list from `pending-for-me` with the copilot summary (advisory), pull-to-refresh, empty and error states | mobile-rn | List matches `pending-for-me` for the signed-in user | todo |
+| M4-3b | Overdue badge from `GET /notify/overdue` (list still works if it fails) and a sign-out header button. Depends on M4-3a | mobile-rn | A step in the caller's overdue list shows a badge; sign-out returns to Login with the token cleared | todo |
 | M4-4 | Request detail with audit trail, approve and reject with comment | mobile-rn | Approving on the phone moves the request to the next step; 403 and 409 show clear messages | todo |
 | M4-5 | Register the device for push and handle an incoming notification | mobile-rn | Submitting a request raises a notification on the approver's phone | todo |
 
