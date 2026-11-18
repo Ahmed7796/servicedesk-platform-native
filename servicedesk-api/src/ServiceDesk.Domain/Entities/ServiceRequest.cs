@@ -62,7 +62,7 @@ public sealed class ServiceRequest : Entity
         request.CreatedAt = now;
         request.UpdatedAt = now;
 
-        request._auditLogs.Add(new AuditLog(request.Id, request.RequesterId, AuditAction.Submitted, null, RequestStatus.Submitted, "Submitted.", now));
+        request.AppendAudit(request.RequesterId, AuditAction.Submitted, null, RequestStatus.Submitted, "Submitted.", now);
 
         foreach (var step in workflow.Steps.OrderBy(s => s.Order))
         {
@@ -78,15 +78,14 @@ public sealed class ServiceRequest : Entity
                     escalated.Value,
                     ApprovalScope.Global,
                     escalatedFrom: step.Position));
-                request._auditLogs.Add(new AuditLog(
-                    request.Id,
+                request.AppendAudit(
                     requester.Id,
                     AuditAction.StepEscalated,
                     RequestStatus.Submitted,
                     RequestStatus.Submitted,
                     $"Step {step.Order} escalated from {step.Position} to {escalated} (requester holds {step.Position})",
                     now
-                ));
+                );
             }
             else
             {
@@ -111,14 +110,13 @@ public sealed class ServiceRequest : Entity
         Status = RequestStateMachine.Fire(before, trigger);
         UpdatedAt = now;
 
-        _auditLogs.Add(
-            new AuditLog(Id,
+        AppendAudit(
             approver.Id,
             AuditAction.StepApproved,
             before,
             Status,
             $"Step {step.Order} ({step.Position}) approved{OnBehalfNote(approver, step)}.",
-            now));
+            now);
     }
 
     public void Reject(User approver, string reason, DateTimeOffset now)
@@ -141,14 +139,13 @@ public sealed class ServiceRequest : Entity
         Status = RequestStateMachine.Fire(before, RequestTrigger.Reject);
         UpdatedAt = now;
 
-        _auditLogs.Add(
-            new AuditLog(Id,
+        AppendAudit(
             approver.Id,
             AuditAction.StepRejected,
             before,
             Status,
             $"Step {step.Order} ({step.Position}) rejected{OnBehalfNote(approver, step)}: {trimmedReason}",
-            now));
+            now);
     }
 
     public void Cancel(User requester, DateTimeOffset now)
@@ -167,7 +164,7 @@ public sealed class ServiceRequest : Entity
         Status = RequestStateMachine.Fire(before, RequestTrigger.Cancel);
         UpdatedAt = now;
 
-        _auditLogs.Add(new AuditLog(Id, requester.Id, AuditAction.Cancelled, before, Status, "Cancelled by requester.", now));
+        AppendAudit(requester.Id, AuditAction.Cancelled, before, Status, "Cancelled by requester.", now);
     }
 
     public void Fulfil(User admin, DateTimeOffset now)
@@ -184,7 +181,7 @@ public sealed class ServiceRequest : Entity
         Status = RequestStateMachine.Fire(before, RequestTrigger.Fulfil);
         UpdatedAt = now;
 
-        _auditLogs.Add(new AuditLog(Id, admin.Id, AuditAction.Fulfilled, before, Status, "Fulfilled.", now));
+        AppendAudit(admin.Id, AuditAction.Fulfilled, before, Status, "Fulfilled.", now);
     }
 
     /// <summary>
@@ -259,6 +256,14 @@ public sealed class ServiceRequest : Entity
 
     private string OnBehalfNote(User actor, ApprovalStep step) =>
         IsAdminFallback(actor, step) ? $", decided by Admin on behalf of {step.Position}" : string.Empty;
+
+    // The only place an audit entry is created. Sequence is 1, 2, 3... per request, so the trail has a stable order
+    // even when entries share a timestamp. It relies on _auditLogs holding every existing entry, so any load that
+    // leads to a state change must Include(AuditLogs); a unique index (ServiceRequestId, Sequence) is the backstop.
+    private void AppendAudit(Guid actorId, AuditAction action, RequestStatus? before, RequestStatus after, string? details, DateTimeOffset now)
+    {
+        _auditLogs.Add(new AuditLog(Id, actorId, _auditLogs.Count + 1, action, before, after, details, now));
+    }
 
     private void SkipPendingSteps()
     {
