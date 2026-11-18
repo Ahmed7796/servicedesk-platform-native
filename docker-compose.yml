@@ -119,6 +119,8 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is not set. Copy .env.example to .env and fill it in.}
       # Processed eventIds for de-duplication (rule 5).
       REDIS_HOST: redis
+      # How long a step may stay pending before it is overdue (M2-3); ISO-8601. Set PT1M to demo overdue.
+      NOTIFY_STEP_SLA: ${NOTIFY_STEP_SLA:-PT24H}
     depends_on:
       postgres:
         condition: service_healthy
