@@ -8,7 +8,8 @@
     "test": "tsc --noEmit && jest",
     "typecheck": "tsc --noEmit",
     "export:android": "expo export --platform android",
-    "gen:api": "openapi-ts -f openapi-ts.config.mjs"
+    "gen:api": "openapi-ts -f openapi-ts.config.mjs",
+    "smoke:login": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/smoke-login.mjs"
   },
   "dependencies": {
     "@react-navigation/native": "7.5.2",
