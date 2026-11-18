@@ -13,5 +13,8 @@ spring:
           initial-interval: 100ms
           multiplier: 1
 app:
+  notify:
+    push:
+      enabled: false   # no test may ever call exp.host
   jwt:
     secret-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=

@@ -1,5 +1,7 @@
 package com.servicedesk.notify.events;
 
+import com.servicedesk.notify.push.PendingNotice;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -18,35 +20,48 @@ public class ProjectionHandler {
         this.repository = repository;
     }
 
+    /**
+     * Applies the event. Returns a notice only when this call really made a step pending
+     * (a row was written): a replay or an older event returns empty, so it never pushes.
+     */
     @Transactional
-    public void handle(EventEnvelope e) {
+    public Optional<PendingNotice> handle(EventEnvelope e) {
         if (e.version() != SUPPORTED_VERSION || e.type() == null) {
             log.warn("Skipping event {} of type {} version {}: unsupported", e.eventId(), e.type(), e.version());
-            return;
+            return Optional.empty();
         }
         switch (e.type()) {
-            case "request.submitted" -> submitted(e);
-            case "request.step_approved" -> stepApproved(e);
+            case "request.submitted" -> { return submitted(e); }
+            case "request.step_approved" -> { return stepApproved(e); }
             case "request.approved", "request.rejected", "request.cancelled" -> close(e);
             case "request.fulfilled" -> log.debug("Event {} fulfilled: nothing to change", e.eventId());
             default -> log.warn("Skipping event {} with unknown type {}", e.eventId(), e.type());
         }
+        return Optional.empty();
     }
 
-    private void submitted(EventEnvelope e) {
+    private Optional<PendingNotice> submitted(EventEnvelope e) {
         StepInfo step = e.payload().currentStep();
         warnIfUnassigned(e, step);
-        repository.upsertSubmitted(e.requestId(), e.payload().title(), e.payload().requesterId(), step, e.occurredAt());
+        int changed = repository.upsertSubmitted(e.requestId(), e.payload().title(), e.payload().requesterId(),
+                step, e.occurredAt());
+        return changed == 0 ? Optional.empty()
+                : Optional.of(new PendingNotice(e.requestId(), e.type(), e.payload().title(), step.approversOrEmpty()));
     }
 
-    private void stepApproved(EventEnvelope e) {
+    private Optional<PendingNotice> stepApproved(EventEnvelope e) {
         StepInfo step = e.payload().nextStep();
         warnIfUnassigned(e, step);
         int changed = repository.moveToStep(e.requestId(), step, e.occurredAt());
-        if (changed == 0 && !repository.exists(e.requestId())) {
-            log.warn("Event {} step_approved for request {} has no pending row (arrived before submitted?); ignored",
-                    e.eventId(), e.requestId());
+        if (changed == 0) {
+            if (!repository.exists(e.requestId())) {
+                log.warn("Event {} step_approved for request {} has no pending row (arrived before submitted?); ignored",
+                        e.eventId(), e.requestId());
+            }
+            return Optional.empty();
         }
+        return Optional.of(new PendingNotice(e.requestId(), e.type(), repository.titleOf(e.requestId()),
+                step.approversOrEmpty()));
     }
 
     private void close(EventEnvelope e) {

@@ -1,5 +1,6 @@
 package com.servicedesk.notify.events;
 
+import com.servicedesk.notify.push.PushNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -26,11 +27,14 @@ public class EventListener {
     private final JsonMapper mapper;
     private final ProcessedEventStore store;
     private final ProjectionHandler handler;
+    private final PushNotifier notifier;
 
-    public EventListener(JsonMapper mapper, ProcessedEventStore store, ProjectionHandler handler) {
+    public EventListener(JsonMapper mapper, ProcessedEventStore store, ProjectionHandler handler,
+                         PushNotifier notifier) {
         this.mapper = mapper;
         this.store = store;
         this.handler = handler;
+        this.notifier = notifier;
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE)
@@ -40,7 +44,16 @@ public class EventListener {
             log.debug("Event {} already processed; skipped", event.eventId());
             return;
         }
-        handler.handle(event);
+        // The projection has committed when handle returns. Push comes after that, outside the
+        // transaction, and only when this call changed a row (a replay returns empty). A push
+        // failure is logged and never fails the event. A crash before the push loses it (at most once).
+        handler.handle(event).ifPresent(notice -> {
+            try {
+                notifier.notifyPending(notice);
+            } catch (RuntimeException e) {
+                log.warn("Push for request {} failed: {}", notice.requestId(), e.getClass().getSimpleName());
+            }
+        });
         store.markProcessed(event.eventId());
     }
 
