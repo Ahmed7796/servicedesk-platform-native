@@ -20,6 +20,28 @@ GET_REQUEST_SPEC = {
     },
 }
 
+HISTORY_DEFAULT_LIMIT = 5
+HISTORY_MAX_LIMIT = 10
+
+GET_REQUESTER_HISTORY_SPEC = {
+    "name": "get_requester_history",
+    "description": "List a requester's recent requests, newest first, to spot repeats and patterns.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "requester_id": {"type": "string", "format": "uuid", "description": "Id of the requester."},
+            "exclude_request_id": {"type": "string", "format": "uuid",
+                                   "description": "Request to leave out, usually the one being triaged."},
+            "limit": {"type": "integer", "minimum": 1, "maximum": HISTORY_MAX_LIMIT,
+                      "default": HISTORY_DEFAULT_LIMIT, "description": "How many requests to return."},
+        },
+        "required": ["requester_id"],
+        "additionalProperties": False,
+    },
+}
+
+TOOL_SPECS = [GET_REQUEST_SPEC, GET_REQUESTER_HISTORY_SPEC]
+
 
 def tool_error(code: str, message: str) -> dict:
     return {"error": code, "message": message}
@@ -38,6 +60,13 @@ def error_from_exception(exc: Exception) -> dict | None:
     return None
 
 
+def _unknown_args(args: dict, allowed: set[str]) -> dict | None:
+    extra = set(args) - allowed
+    if extra:
+        return tool_error("invalid_arguments", f"unknown argument(s): {', '.join(sorted(extra))}")
+    return None
+
+
 def _uuid_arg(args: dict, name: str) -> str | dict:
     try:
         return str(UUID(str(args[name])))
@@ -49,10 +78,56 @@ class TriageTools:
     def __init__(self, client: ServiceDeskClient) -> None:
         self._client = client
 
+    async def call(self, name: str, args: object) -> dict:
+        """Run a tool by name. Bad names or arguments come back as invalid_arguments results."""
+        handlers = {"get_request": self.get_request, "get_requester_history": self.get_requester_history}
+        if name not in handlers:
+            return tool_error("invalid_arguments", f"unknown tool '{name}'")
+        if not isinstance(args, dict):
+            return tool_error("invalid_arguments", "arguments must be a JSON object")
+        return await handlers[name](args)
+
+    async def get_requester_history(self, args: dict) -> dict:
+        bad = _unknown_args(args, {"requester_id", "exclude_request_id", "limit"})
+        if bad:
+            return bad
+        requester_id = _uuid_arg(args, "requester_id")
+        if isinstance(requester_id, dict):
+            return requester_id
+        exclude = None
+        if "exclude_request_id" in args:
+            exclude = _uuid_arg(args, "exclude_request_id")
+            if isinstance(exclude, dict):
+                return exclude
+        limit = args.get("limit", HISTORY_DEFAULT_LIMIT)
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= HISTORY_MAX_LIMIT:
+            return tool_error("invalid_arguments", f"'limit' must be an integer from 1 to {HISTORY_MAX_LIMIT}")
+        try:
+            # The contract has no server-side filter: fetch everything, filter here.
+            everything = await self._client.list_requests()
+        except Exception as exc:
+            mapped = error_from_exception(exc)
+            if mapped is None:
+                raise
+            return mapped
+        mine = [r for r in everything if r.requester_id.lower() == requester_id and r.id.lower() != exclude]
+        mine.sort(key=lambda r: (r.created_at, r.id.lower()), reverse=True)
+        return {
+            "requester_id": requester_id,
+            "total_matching": len(mine),
+            "returned": min(len(mine), limit),
+            "requests": [
+                {"id": r.id, "title": r.title, "type": r.type, "status": r.status,
+                 "created_at": r.created_at.isoformat(),
+                 "steps_summary": ",".join(f"{s.position}:{s.decision}" for s in sorted(r.steps, key=lambda s: s.order))}
+                for r in mine[:limit]
+            ],
+        }
+
     async def get_request(self, args: dict) -> dict:
-        extra = set(args) - {"request_id"}
-        if extra:
-            return tool_error("invalid_arguments", f"unknown argument(s): {', '.join(sorted(extra))}")
+        bad = _unknown_args(args, {"request_id"})
+        if bad:
+            return bad
         request_id = _uuid_arg(args, "request_id")
         if isinstance(request_id, dict):
             return request_id
