@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 
-jest.mock('expo-secure-store', () => ({}));
+jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn().mockResolvedValue(null) }));
 import App from '../App';
 
 describe('App configuration', () => {
@@ -21,6 +21,6 @@ describe('App configuration', () => {
   it('reaches the login screen when the base URL is set', async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = 'http://proxy:8000';
     await render(<App />);
-    expect(screen.getByTestId('login-screen')).toBeTruthy();
+    expect(await screen.findByTestId('login-screen')).toBeTruthy();
   });
 });
