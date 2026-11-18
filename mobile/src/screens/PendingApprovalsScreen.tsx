@@ -3,12 +3,13 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { PendingItemRow } from '../components/PendingItemRow';
+import { isOverdue } from '../api/overdue';
 import { usePendingApprovals } from './usePendingApprovals';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PendingApprovals'>;
 
 export function PendingApprovalsScreen({ navigation }: Props) {
-  const { items, loading, refreshing, error, refresh } = usePendingApprovals();
+  const { items, overdue, loading, refreshing, error, refresh } = usePendingApprovals();
 
   if (loading && items === null) {
     return (
@@ -30,7 +31,7 @@ export function PendingApprovalsScreen({ navigation }: Props) {
         data={items ?? []}
         keyExtractor={(item) => item.requestId}
         renderItem={({ item }) => (
-          <PendingItemRow item={item} onPress={(requestId) => navigation.navigate('RequestDetail', { requestId })} />
+          <PendingItemRow item={item} overdue={isOverdue(item, overdue)} onPress={(requestId) => navigation.navigate('RequestDetail', { requestId })} />
         )}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         ListEmptyComponent={

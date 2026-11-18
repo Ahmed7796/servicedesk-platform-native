@@ -26,8 +26,10 @@ export function configureApi(
   const config = { baseUrl, auth: async () => (await getToken()) ?? undefined };
   apiClient.setConfig(config);
   notifyClient.setConfig(config);
+  // Only the API ends the session (rule 7: it issues the token). A 401 from the notification
+  // service is treated like any other failure of that best-effort call. If the token really
+  // expired, the API calls get a 401 too.
   installUnauthorizedHandler(apiClient, onUnauthorized);
-  installUnauthorizedHandler(notifyClient, onUnauthorized);
 }
 
 // The login call is the one 401 that is not a session problem: it means a wrong password.

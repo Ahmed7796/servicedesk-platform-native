@@ -4,6 +4,7 @@ import type { RootStackParamList } from './types';
 import { LoginScreen } from '../screens/LoginScreen';
 import { PendingApprovalsScreen } from '../screens/PendingApprovalsScreen';
 import { RequestDetailScreen } from '../screens/RequestDetailScreen';
+import { SignOutButton } from '../components/SignOutButton';
 import { tokenStore } from '../auth/tokenStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -25,7 +26,7 @@ export function RootNavigator() {
       <Stack.Screen
         name="PendingApprovals"
         component={PendingApprovalsScreen}
-        options={{ title: 'Pending approvals' }}
+        options={{ title: 'Pending approvals', headerRight: () => <SignOutButton /> }}
       />
       <Stack.Screen
         name="RequestDetail"
