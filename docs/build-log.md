@@ -41,7 +41,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Exception to "never edit a committed migration", authorized by Ahmed:** `InitialCreate` and `AddOutbox` are SQL Server-specific and are deleted and regenerated for PostgreSQL. Safe only because nothing is deployed and there is no data to keep. From M0-6 on, the rule applies again with no exceptions.
 - Verified on compose (lead, 2026-11-17): `InitialPostgres` applies; submit + approve write two outbox rows matching their audit timestamps, both ajv-valid. Racing approve against cancel 15 times gave 14 overlaps: each time exactly one call won, the other got 409 "Concurrency conflict", and the loser's outbox row was rolled back. This closes M1-1b's known limit (rollback on a concurrency conflict untested against a real database).
 
-**As of 2026-11-18, Milestone 1 nearly done.** Everything below is merged except M1-4b (PR open at hand-over). Only M1-5 is left in Milestone 1.
+**As of 2026-11-18, Milestone 1 nearly done.** Everything below is merged except M1-4b (PR #13, open at hand-over). Only M1-5 is left in Milestone 1.
 
 | Task | PR | Result |
 |---|---|---|
@@ -53,7 +53,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M1-2b | #10 | `OutboxPublisherService` loop + `RabbitMqEventBroker` (RabbitMQ.Client 7.2.2, publisher confirms), `--healthcheck` probe, api health check in Compose; 234 tests |
 | M1-3 | #11 | `GET /api/service-requests/pending-for-me`; 251 tests |
 | M1-4a | #12 | `POST /api/auth/service-token`, `TriageService` role, deny-by-default authorization (fallback policy = human roles); Mvc.Testing in-memory HTTP tests; 283 tests |
-| M1-4b | open at hand-over | `POST /api/service-requests/{id}/triage` (own `TriageSuggestions` table, `ON CONFLICT` upsert), `triage` on detail and pending items, integer enums refused API-wide; 332 tests |
+| M1-4b | #13 | `POST /api/service-requests/{id}/triage` (own `TriageSuggestions` table, `ON CONFLICT` upsert), `triage` on detail and pending items, integer enums refused API-wide; 332 tests |
 
 **How the loop runs now** (see ORCHESTRATION.md for the full loop):
 - Lead briefs a fresh api-dotnet agent per task, plan only. Lead approves plans when no new dependency, contract change or rule exception is involved; otherwise Ahmed decides.
