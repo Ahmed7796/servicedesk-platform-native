@@ -1,0 +1,7 @@
+# Real PostgreSQL via Testcontainers (@ServiceConnection supplies url/user/password).
+spring:
+  datasource:
+    password: unused
+app:
+  jwt:
+    secret-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
