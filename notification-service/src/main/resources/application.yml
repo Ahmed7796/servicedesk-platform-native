@@ -1,0 +1,28 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/notify}
+    username: ${DB_USER:notify}
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: true
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
+app:
+  jwt:
+    secret-key: ${JWT_SECRET_KEY}   # base64; decoded to raw bytes
+    issuer: ${JWT_ISSUER:ServiceDesk}
+    audience: ${JWT_AUDIENCE:ServiceDesk.Api}
+
+management:
+  # Actuator's web endpoints are still exposed by default (health). SecurityConfig denies
+  # /actuator/**; the contract health is HealthController at /notify/health.
+  endpoint:
+    health:
+      show-details: never
