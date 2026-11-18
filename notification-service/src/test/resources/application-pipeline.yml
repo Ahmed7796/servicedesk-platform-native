@@ -1,0 +1,17 @@
+# Containers supply RabbitMQ, Redis and PostgreSQL connection details (@ServiceConnection).
+spring:
+  datasource:
+    password: unused
+  rabbitmq:
+    username: unused
+    password: unused
+    listener:
+      simple:
+        retry:
+          enabled: true
+          max-retries: 2
+          initial-interval: 100ms
+          multiplier: 1
+app:
+  jwt:
+    secret-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=

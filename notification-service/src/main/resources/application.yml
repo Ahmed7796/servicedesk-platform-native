@@ -10,11 +10,30 @@ spring:
     password: ${POSTGRES_PASSWORD}
   flyway:
     enabled: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        default-requeue-rejected: false   # failures go to the dead-letter queue, never loop
+        retry:
+          enabled: true                   # bounded: 1 try + 2 retries = 3 attempts, then rejected without requeue
+          max-retries: 2
+          initial-interval: 1s
+          multiplier: 2
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
   jackson:
     deserialization:
       fail-on-unknown-properties: false
 
 app:
+  messaging:
+    enabled: true   # false only in the offline "test" profile
   jwt:
     secret-key: ${JWT_SECRET_KEY}   # base64; decoded to raw bytes
     issuer: ${JWT_ISSUER:ServiceDesk}

@@ -37,7 +37,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | ID | Task | Owner | Acceptance check | Status |
 |---|---|---|---|---|
 | M2-1 | Spring Boot skeleton, PostgreSQL migrations, JWT validation, health endpoint | notify-spring | `./mvnw test` passes; service starts in Compose | todo |
-| M2-2 | Consumers for the six events with Redis de-duplication | notify-spring | Replaying the same event twice changes the tables once | todo |
+| M2-2 | Consumers for the six events with Redis de-duplication | notify-spring | Replaying the same event twice changes the tables once | done |
 | M2-3 | Pending-step table with due times; scheduled overdue job | notify-spring | A step past its due time appears in `GET /notify/overdue`; a `TriageService` token gets 403 | todo |
 | M2-4 | `POST /notify/devices` and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted`; a `TriageService` token gets 403 on `POST /notify/devices` | todo |
 

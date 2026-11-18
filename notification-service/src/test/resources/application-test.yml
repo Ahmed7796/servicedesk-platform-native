@@ -1,4 +1,4 @@
-# Tests run without a database: DataSource and Flyway are switched off.
+# Tests run without a database, broker or Redis: their auto-configuration and our listener beans are off.
 spring:
   autoconfigure:
     exclude:
@@ -7,9 +7,16 @@ spring:
       - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
       - org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration
       - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+      - org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration
+      - org.springframework.boot.amqp.autoconfigure.health.RabbitHealthContributorAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.health.DataRedisHealthContributorAutoConfiguration
   datasource:
     password: unused
 app:
+  messaging:
+    enabled: false
   jwt:
     # base64 of 32 random-looking bytes (not UTF-8 text)
     secret-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
