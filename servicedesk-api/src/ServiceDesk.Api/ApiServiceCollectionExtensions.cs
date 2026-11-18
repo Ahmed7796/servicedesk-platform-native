@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using ServiceDesk.Api.Auth;
@@ -47,8 +48,30 @@ public static class ApiServiceCollectionExtensions
                 };
             });
 
-        services.AddAuthorization();
+        // Deny by default for TriageService: a bare [Authorize] and an endpoint with no attribute at all both get
+        // the human-roles policy. Only an explicit Policy = ... below lets the service role in.
+        services.AddAuthorization(options =>
+        {
+            var humanUser = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .RequireRole(AppRoles.HumanRoles)
+                .Build();
 
+            options.DefaultPolicy = humanUser;
+            options.FallbackPolicy = humanUser;
+
+            options.AddPolicy(Policies.CanReadRequests, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole([.. AppRoles.HumanRoles, AppRoles.TriageService]));
+        });
+
+        return services;
+    }
+
+    // Fails at startup, naming the variable, if the triage client settings are missing or weak.
+    public static IServiceCollection AddServiceClients(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton(ServiceClientOptions.FromConfiguration(configuration));
         return services;
     }
 

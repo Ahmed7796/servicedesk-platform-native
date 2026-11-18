@@ -10,6 +10,7 @@ public sealed class JwtTokenService
     private readonly string _issuer;
     private readonly string _audience;
     private readonly int _expiryMinutes;
+    private readonly int _serviceExpiryMinutes;
     private readonly SymmetricSecurityKey _key;
     private readonly TimeProvider _timeProvider;
 
@@ -21,6 +22,10 @@ public sealed class JwtTokenService
         
         _expiryMinutes = config.GetValue<int>("Jwt:ExpiryMinutes");
 
+        _serviceExpiryMinutes = config.GetValue<int?>("Jwt:ServiceTokenExpiryMinutes") ?? 30;
+        if (_serviceExpiryMinutes <= 0)
+            throw new InvalidOperationException("Jwt__ServiceTokenExpiryMinutes must be greater than 0 (or unset for the default of 30).");
+
         var base64Key = config["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured.");
         _key = new SymmetricSecurityKey(Convert.FromBase64String(base64Key));
 
@@ -29,9 +34,6 @@ public sealed class JwtTokenService
 
     public TokenResult CreateToken(User user)
     {
-        var now = _timeProvider.GetUtcNow();
-        var expires = now.AddMinutes(_expiryMinutes);
-
         Claim[] claims =
         [
             new("sub", user.Id.ToString()),
@@ -39,6 +41,26 @@ public sealed class JwtTokenService
             new("name", user.DisplayName),
             new("role", user.Role.ToString()),
         ];
+
+        return Create(claims, _expiryMinutes);
+    }
+
+    // sub is the client id here, not a user id: nothing may parse it as a Guid.
+    public TokenResult CreateServiceToken(string clientId)
+    {
+        Claim[] claims =
+        [
+            new("sub", clientId),
+            new("role", AppRoles.TriageService),
+        ];
+
+        return Create(claims, _serviceExpiryMinutes);
+    }
+
+    private TokenResult Create(Claim[] claims, int minutes)
+    {
+        var now = _timeProvider.GetUtcNow();
+        var expires = now.AddMinutes(minutes);
 
         var descriptor = new SecurityTokenDescriptor
         {

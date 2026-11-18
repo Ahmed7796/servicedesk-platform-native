@@ -1,30 +1,34 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ServiceDesk.Api.Auth;
 using ServiceDesk.Application.DTOs;
 using ServiceDesk.Application.Services;
 
 namespace ServiceDesk.Api.Controllers;
 
 [ApiController]
-[Authorize]
+// No class-level [Authorize]: it would be ANDed with the method-level read policy and lock TriageService out of the GETs.
+// Methods without an attribute get the fallback policy (human roles only); see AddJwtAuthentication.
 [Route("api/service-requests")]
 public sealed class ServiceRequestsController(ServiceRequestService service) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = Policies.CanReadRequests)]
     public async Task<ActionResult<IReadOnlyList<ServiceRequestDto>>> List(CancellationToken ct)
     {
         return Ok(await service.ListAsync(ct));
     }
 
-    // Role list, not just [Authorize]: the TriageService role (M1-4a) is left out, so it gets 403.
+    // Human roles only; TriageService gets 403.
     [HttpGet("pending-for-me")]
-    [Authorize(Roles = "Requester,Approver,Admin")]
+    [Authorize(Roles = AppRoles.Human)]
     public async Task<ActionResult<IReadOnlyList<PendingItemDto>>> ListPendingForMe(CancellationToken ct)
     {
         return Ok(await service.ListPendingForAsync(GetCurrentUserId(), ct));
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.CanReadRequests)]
     public async Task<ActionResult<ServiceRequestDto>> GetById(Guid id, CancellationToken ct)
     {
         return Ok(await service.GetByIdAsync(id, ct));
@@ -63,6 +67,8 @@ public sealed class ServiceRequestsController(ServiceRequestService service) : C
     }
 
     // "sub" is kept as-is because AddJwtBearer sets MapInboundClaims = false.
+    // Only human tokens get here: a TriageService token has a client id in sub, and the authorization policies
+    // refuse it with 403 before any action runs. This parse is not what protects these endpoints.
     private Guid GetCurrentUserId()
     {
         var sub = User.FindFirst("sub")?.Value;
