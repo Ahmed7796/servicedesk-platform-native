@@ -13,9 +13,9 @@ string RequesterName,
 Guid DepartmentId,
 DateTimeOffset CreatedAt,
 ApprovalStepDto CurrentStep,
-object? Triage) // Always null until M1-4b replaces this with the real triage DTO. The key must stay in the JSON.
+TriageSuggestionDto? Triage) // Null until the copilot has posted. The key must stay in the JSON.
 {
-    public static PendingItemDto From(ServiceRequest r, string requesterName)
+    public static PendingItemDto From(ServiceRequest r, string requesterName, TriageSuggestionDto? triage)
     {
         var s = r.CurrentStep!; // callers only pass requests that passed CanDecideCurrentStep, which needs a pending step
 
@@ -28,6 +28,6 @@ object? Triage) // Always null until M1-4b replaces this with the real triage DT
         r.DepartmentId,
         r.CreatedAt,
         new ApprovalStepDto(s.Order, s.Position, s.Scope, s.Decision, s.DecidedById, s.DecidedAt, s.Comment, s.EscalatedFrom),
-        null);
+        triage);
     }
 }

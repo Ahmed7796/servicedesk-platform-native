@@ -265,6 +265,8 @@ public class ServiceTokenEndpointTests : IClassFixture<ServiceTokenApiFactory>
         }
 
         Assert.Equal(["GetById", "List"], readPolicy.Order().ToArray());
+        // The triage POST is open to TriageService only, through its own policy.
+        Assert.Contains(actions, a => a.ActionName == "PostTriage" && a.MethodInfo.GetCustomAttributes<AuthorizeAttribute>(true).Any(x => x.Policy == Policies.CanPostTriage));
     }
 
     // A future bare [Authorize] uses the default policy, an attribute-less endpoint the fallback: both must refuse TriageService.

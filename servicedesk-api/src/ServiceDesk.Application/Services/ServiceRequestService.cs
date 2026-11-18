@@ -7,7 +7,7 @@ using ServiceDesk.Domain.Exceptions;
 
 namespace ServiceDesk.Application.Services;
 
-public sealed class ServiceRequestService(IServiceRequestRepository requests, IUserRepository users, IWorkflowTemplateRepository workflows, IUnitOfWork unitOfWork, IOutboxRepository outbox, ApproverResolver approvers, TimeProvider timeProvider)
+public sealed class ServiceRequestService(IServiceRequestRepository requests, IUserRepository users, IWorkflowTemplateRepository workflows, IUnitOfWork unitOfWork, IOutboxRepository outbox, ApproverResolver approvers, TimeProvider timeProvider, ITriageRepository triage)
 {
     public async Task<ServiceRequestDto> SubmitAsync(Guid requesterId, SubmitServiceRequestDto dto, CancellationToken ct)
     {
@@ -33,6 +33,15 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
         var request = await requests.GetByIdAsync(requestId, ct) ?? throw new NotFoundException($"Request {requestId} not found.");
 
         return ServiceRequestDto.FromEntity(request);
+    }
+
+    // Detail read: the request plus its stored triage suggestion (null before the copilot has posted).
+    public async Task<ServiceRequestDetailDto> GetDetailAsync(Guid requestId, CancellationToken ct)
+    {
+        var request = await requests.GetByIdAsync(requestId, ct) ?? throw new NotFoundException($"Request {requestId} not found.");
+        var suggestion = await triage.GetByRequestIdAsync(requestId, ct);
+
+        return ServiceRequestDetailDto.From(ServiceRequestDto.FromEntity(request), suggestion is null ? null : TriageSuggestionDto.FromEntity(suggestion));
     }
 
     public async Task<IReadOnlyList<ServiceRequestDto>> ListAsync(CancellationToken ct)
@@ -63,7 +72,11 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
         var requesters = await users.ListByIdsAsync(eligible.Select(r => r.RequesterId).Distinct(), ct);
         var names = requesters.ToDictionary(u => u.Id, u => u.DisplayName);
 
-        return eligible.Select(r => PendingItemDto.From(r, names[r.RequesterId])).ToList();
+        // One query for all suggestions of the listed requests (no N+1).
+        var suggestions = (await triage.ListByRequestIdsAsync(eligible.Select(r => r.Id), ct))
+            .ToDictionary(t => t.RequestId, TriageSuggestionDto.FromEntity);
+
+        return eligible.Select(r => PendingItemDto.From(r, names[r.RequesterId], suggestions.GetValueOrDefault(r.Id))).ToList();
     }
 
     public async Task<ServiceRequestDto> ApproveAsync(Guid requestId, Guid approverId, string? comment, CancellationToken ct)

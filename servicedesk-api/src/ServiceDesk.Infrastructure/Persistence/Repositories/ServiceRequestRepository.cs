@@ -47,6 +47,11 @@ public sealed class ServiceRequestRepository(AppDbContext db) : IServiceRequestR
         return await open.ToListAsync(ct);
     }
 
+    public Task<bool> ExistsAsync(Guid id, CancellationToken ct)
+    {
+        return db.ServiceRequests.AsNoTracking().AnyAsync(r => r.Id == id, ct);
+    }
+
     public void Add(ServiceRequest request)
     {
         db.ServiceRequests.Add(request);

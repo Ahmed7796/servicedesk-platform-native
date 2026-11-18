@@ -71,7 +71,7 @@ public class PendingForMeTests
     {
         var approvers = new ApproverResolver(_userRepo);
         return new ServiceRequestService(_requestRepo, _userRepo, Substitute.For<IWorkflowTemplateRepository>(),
-            Substitute.For<IUnitOfWork>(), Substitute.For<IOutboxRepository>(), approvers, TimeProvider.System);
+            Substitute.For<IUnitOfWork>(), Substitute.For<IOutboxRepository>(), approvers, TimeProvider.System, Substitute.For<ITriageRepository>());
     }
 
     private ServiceRequest Submit(User requester, WorkflowTemplate workflow, int minutes = 0)

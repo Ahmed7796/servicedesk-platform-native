@@ -10,7 +10,7 @@ namespace ServiceDesk.Api.Controllers;
 // No class-level [Authorize]: it would be ANDed with the method-level read policy and lock TriageService out of the GETs.
 // Methods without an attribute get the fallback policy (human roles only); see AddJwtAuthentication.
 [Route("api/service-requests")]
-public sealed class ServiceRequestsController(ServiceRequestService service) : ControllerBase
+public sealed class ServiceRequestsController(ServiceRequestService service, TriageSuggestionService triageService) : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = Policies.CanReadRequests)]
@@ -29,9 +29,17 @@ public sealed class ServiceRequestsController(ServiceRequestService service) : C
 
     [HttpGet("{id:guid}")]
     [Authorize(Policy = Policies.CanReadRequests)]
-    public async Task<ActionResult<ServiceRequestDto>> GetById(Guid id, CancellationToken ct)
+    public async Task<ActionResult<ServiceRequestDetailDto>> GetById(Guid id, CancellationToken ct)
     {
-        return Ok(await service.GetByIdAsync(id, ct));
+        return Ok(await service.GetDetailAsync(id, ct));
+    }
+
+    // TriageService only. Advisory: stores the suggestion and changes nothing else (no audit entry, no event).
+    [HttpPost("{id:guid}/triage")]
+    [Authorize(Policy = Policies.CanPostTriage)]
+    public async Task<ActionResult<TriageSuggestionDto>> PostTriage(Guid id, TriageSuggestionInputDto dto, CancellationToken ct)
+    {
+        return Ok(await triageService.PostAsync(id, dto, ct));
     }
 
     [HttpPost]

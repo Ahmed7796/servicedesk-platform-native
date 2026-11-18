@@ -18,6 +18,9 @@ public static class AppRoles
 
 public static class Policies
 {
-    /// <summary>The only policy (besides the later CanPostTriage) that lets TriageService in. Used by the two GET endpoints.</summary>
+    /// <summary>Lets TriageService in, next to the human roles. Used by the two GET endpoints.</summary>
     public const string CanReadRequests = "CanReadRequests";
+
+    /// <summary>TriageService only: no human role may post a triage suggestion.</summary>
+    public const string CanPostTriage = "CanPostTriage";
 }

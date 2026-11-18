@@ -220,6 +220,41 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                     b.ToTable("ServiceRequests", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceDesk.Domain.Entities.TriageSuggestion", b =>
+                {
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("SuggestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<string[]>("SuggestedRoute")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("RequestId");
+
+                    b.ToTable("TriageSuggestions", (string)null);
+                });
+
             modelBuilder.Entity("ServiceDesk.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -363,6 +398,15 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("RequesterId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ServiceDesk.Domain.Entities.TriageSuggestion", b =>
+                {
+                    b.HasOne("ServiceDesk.Domain.Entities.ServiceRequest", null)
+                        .WithOne()
+                        .HasForeignKey("ServiceDesk.Domain.Entities.TriageSuggestion", "RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
