@@ -28,20 +28,23 @@ public sealed class ServiceRequestService(IServiceRequestRepository requests, IU
         return ServiceRequestDto.FromEntity(request);
     }
 
-    public async Task<ServiceRequestDto> GetByIdAsync(Guid requestId, CancellationToken ct)
-    {
-        var request = await requests.GetByIdAsync(requestId, ct) ?? throw new NotFoundException($"Request {requestId} not found.");
-
-        return ServiceRequestDto.FromEntity(request);
-    }
-
-    // Detail read: the request plus its stored triage suggestion (null before the copilot has posted).
+    // Detail read: the request, the requester's name, the audit trail (oldest first by Sequence) and the stored
+    // triage suggestion (null before the copilot has posted).
     public async Task<ServiceRequestDetailDto> GetDetailAsync(Guid requestId, CancellationToken ct)
     {
         var request = await requests.GetByIdAsync(requestId, ct) ?? throw new NotFoundException($"Request {requestId} not found.");
         var suggestion = await triage.GetByRequestIdAsync(requestId, ct);
 
-        return ServiceRequestDetailDto.From(ServiceRequestDto.FromEntity(request), suggestion is null ? null : TriageSuggestionDto.FromEntity(suggestion));
+        // One query for the requester and every actor (no N+1).
+        var userIds = request.AuditLogs.Select(a => a.ActorId).Append(request.RequesterId).Distinct();
+        var names = (await users.ListByIdsAsync(userIds, ct)).ToDictionary(u => u.Id, u => u.DisplayName);
+
+        // Cannot happen: the foreign keys to Users are Restrict. This guards an impossible state instead of inventing a name.
+        string NameOf(Guid userId) => names.TryGetValue(userId, out var name) ? name : throw new InvalidOperationException($"User {userId} not found for request {requestId}.");
+
+        var trail = request.AuditLogs.OrderBy(a => a.Sequence).Select(a => AuditEntryDto.FromEntity(a, NameOf(a.ActorId))).ToList();
+
+        return ServiceRequestDetailDto.From(ServiceRequestDto.FromEntity(request), NameOf(request.RequesterId), trail, suggestion is null ? null : TriageSuggestionDto.FromEntity(suggestion));
     }
 
     public async Task<IReadOnlyList<ServiceRequestDto>> ListAsync(CancellationToken ct)

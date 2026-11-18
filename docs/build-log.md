@@ -41,7 +41,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Exception to "never edit a committed migration", authorized by Ahmed:** `InitialCreate` and `AddOutbox` are SQL Server-specific and are deleted and regenerated for PostgreSQL. Safe only because nothing is deployed and there is no data to keep. From M0-6 on, the rule applies again with no exceptions.
 - Verified on compose (lead, 2026-11-17): `InitialPostgres` applies; submit + approve write two outbox rows matching their audit timestamps, both ajv-valid. Racing approve against cancel 15 times gave 14 overlaps: each time exactly one call won, the other got 409 "Concurrency conflict", and the loser's outbox row was rolled back. This closes M1-1b's known limit (rollback on a concurrency conflict untested against a real database).
 
-**As of 2026-11-18, Milestone 1 nearly done.** Everything below is merged except M1-4b (PR #13, open at hand-over). Only M1-5 is left in Milestone 1.
+**As of 2026-11-18, end of Milestone 1.** Everything below is merged except M1-5b (PR open at hand-over); merging it closes Milestone 1.
 
 | Task | PR | Result |
 |---|---|---|
@@ -54,10 +54,13 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M1-3 | #11 | `GET /api/service-requests/pending-for-me`; 251 tests |
 | M1-4a | #12 | `POST /api/auth/service-token`, `TriageService` role, deny-by-default authorization (fallback policy = human roles); Mvc.Testing in-memory HTTP tests; 283 tests |
 | M1-4b | #13 | `POST /api/service-requests/{id}/triage` (own `TriageSuggestions` table, `ON CONFLICT` upsert), `triage` on detail and pending items, integer enums refused API-wide; 332 tests |
+| M1-5a | #14 | `AuditLog.Sequence` numbered by the domain per request (not by insert order: EF sorts inserts by key and v7 Ids are random within a millisecond); unique (ServiceRequestId, Sequence); migration backfills old rows with Submitted ranked first; 340 tests |
+| M1-5b | (open) | `requesterName` and `auditTrail` (ordered by `Sequence`) on `GET {id}`; validates against `ServiceRequestDetail` with ajv on compose; unused `GetByIdAsync` removed; 346 tests |
 
 **How the loop runs now** (see ORCHESTRATION.md for the full loop):
 - Lead briefs a fresh api-dotnet agent per task, plan only. Lead approves plans when no new dependency, contract change or rule exception is involved; otherwise Ahmed decides.
-- Lead verifies every task in compose against real PostgreSQL/RabbitMQ with seeded users, and validates JSON with ajv. OpenAPI component schemas are converted to JSON Schema by a short script; `jsonschema` is not installed.
+- Lead verifies every task in compose against real PostgreSQL/RabbitMQ with seeded users, and validates JSON with ajv. OpenAPI component schemas are converted to JSON Schema by a short script (wrap `components.schemas` as `$defs`, rewrite `#/components/schemas/` to `#/$defs/` and `../events/defs.schema.json` to that file's `$id`, pass it with `-r`). Run one negative case (drop a required key) so a pass means something; `jsonschema` is not installed.
+- Migrations that touch existing rows are checked by starting `main` in a `git worktree` under the same compose project name, writing data, then rebuilding only `api` from the branch.
 - Seed data never reaches the Admin fallback (no workflow has a GeneralManager step). Compose checks switch the Leave step to GeneralManager in the throwaway dev DB and wipe it with `docker compose down -v` afterwards.
 - Size: builders' test estimates run 1.5 to 2 times low (see the M1-2a to M1-4b row below). Split at plan time.
 
@@ -66,8 +69,8 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Loosen `position` in the contracts to a plain string?** This is only cheap before M2-1 starts, because consumers will code against the enum. It needs Gate A approval.
 
 **Next**
-- **M1-5:** `auditTrail` and `requesterName` on `GET /api/service-requests/{id}`, validating against `ServiceRequestDetail`. M1-4b already returns `ServiceRequestDetailDto` with `triage`, so M1-5 adds the two fields. Remove the now-unused `ServiceRequestService.GetByIdAsync` (flagged in the M1-4b hand-off). Name the stable tie-break for `Submitted` + `StepEscalated` written at the same instant. Seed data for an escalation entry: ops.head submits Equipment.
-- **Then Milestones 2 to 4 in parallel** (ORCHESTRATION.md), after a progress-summary update at the milestone boundary.
+- **Before M2-1 starts:** Ahmed decides the `position` question above (it is only cheap now).
+- **Milestones 2 to 4 in parallel** (ORCHESTRATION.md): first tasks M2-1 (notify-spring), M3-1 (copilot-python), M4-1 (mobile-rn). Each brief carries the matching "Open follow-ups" items below.
 
 **Open follow-ups**
 - **M2-1 and M3-1 (consumers):** declare exchange `servicedesk.events` (topic, durable) before binding a queue; the API declares it only on its first connection. The lead adds `depends_on: <consumer>: condition: service_healthy` to the api in Compose (contracts/events/README.md, Transport).
