@@ -30,7 +30,7 @@ public class ServiceRequestServiceTests
     public ServiceRequestServiceTests()
     {
         _timeProvider.GetUtcNow().Returns(Now);
-        _service = new ServiceRequestService(_requests, _users, _workflows, _unitOfWork, _outbox, new ApproverResolver(_users), _timeProvider);
+        _service = new ServiceRequestService(_requests, _users, _workflows, _unitOfWork, _outbox, new ApproverResolver(_users), _timeProvider, Substitute.For<ITriageRepository>());
     }
 
     private ServiceRequest SubmitValid()

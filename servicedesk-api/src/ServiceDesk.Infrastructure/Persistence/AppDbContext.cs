@@ -12,6 +12,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<WorkflowTemplate> WorkflowTemplates => Set<WorkflowTemplate>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<TriageSuggestion> TriageSuggestions => Set<TriageSuggestion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

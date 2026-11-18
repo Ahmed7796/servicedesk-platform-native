@@ -52,7 +52,7 @@ public class ServiceRequestServiceOutboxTests
         _outbox.When(o => o.Add(Arg.Any<OutboxMessage>())).Do(c => { _added.Add(c.Arg<OutboxMessage>()); _calls.Add("add"); });
         _unitOfWork.When(u => u.SaveChangesAsync(Arg.Any<CancellationToken>())).Do(_ => _calls.Add("save"));
 
-        _service = new ServiceRequestService(_requests, _users, _workflows, _unitOfWork, _outbox, new ApproverResolver(_users), _timeProvider);
+        _service = new ServiceRequestService(_requests, _users, _workflows, _unitOfWork, _outbox, new ApproverResolver(_users), _timeProvider, Substitute.For<ITriageRepository>());
     }
 
     private ServiceRequest Load(User requester, WorkflowTemplate workflow)

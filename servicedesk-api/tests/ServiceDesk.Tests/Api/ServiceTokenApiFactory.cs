@@ -23,6 +23,7 @@ public sealed class ServiceTokenApiFactory : WebApplicationFactory<Program>
     public IWorkflowTemplateRepository Workflows { get; } = Substitute.For<IWorkflowTemplateRepository>();
     public IUnitOfWork UnitOfWork { get; } = Substitute.For<IUnitOfWork>();
     public IOutboxRepository Outbox { get; } = Substitute.For<IOutboxRepository>();
+    public ITriageRepository Triage { get; } = Substitute.For<ITriageRepository>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -49,6 +50,7 @@ public sealed class ServiceTokenApiFactory : WebApplicationFactory<Program>
             Replace(services, Workflows);
             Replace(services, UnitOfWork);
             Replace(services, Outbox);
+            Replace(services, Triage);
         });
     }
 

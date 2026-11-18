@@ -14,7 +14,7 @@ public static class ApiServiceCollectionExtensions
     {
         services
             .AddControllers()
-            .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+            .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
 
         services.AddProblemDetails();
         services.AddExceptionHandler<DomainExceptionHandler>();
@@ -63,6 +63,10 @@ public static class ApiServiceCollectionExtensions
             options.AddPolicy(Policies.CanReadRequests, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireRole([.. AppRoles.HumanRoles, AppRoles.TriageService]));
+
+            options.AddPolicy(Policies.CanPostTriage, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(AppRoles.TriageService));
         });
 
         return services;

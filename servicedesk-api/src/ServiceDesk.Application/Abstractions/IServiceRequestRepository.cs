@@ -12,6 +12,9 @@ public interface IServiceRequestRepository
     // ServiceRequest.CanDecideCurrentStep does the real filtering. Includes ApprovalSteps, read-only.
     Task<IReadOnlyList<ServiceRequest>> ListPendingCandidatesAsync(User caller, CancellationToken ct);
 
+    // Existence check only; loads nothing into the change tracker.
+    Task<bool> ExistsAsync(Guid id, CancellationToken ct);
+
     void Add(ServiceRequest request);
 
 }
