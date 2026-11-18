@@ -92,6 +92,9 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("ServiceRequestId")
                         .HasColumnType("uuid");
 
@@ -108,7 +111,8 @@ namespace ServiceDesk.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ActorId");
 
-                    b.HasIndex("ServiceRequestId");
+                    b.HasIndex("ServiceRequestId", "Sequence")
+                        .IsUnique();
 
                     b.ToTable("AuditLogs", (string)null);
                 });

@@ -9,6 +9,7 @@ public sealed class AuditLog : Entity
 
     public Guid ServiceRequestId { get; private set; }
     public Guid ActorId { get; private set; }
+    public int Sequence { get; private set; } // 1-based position in the request's trail; the stable order.
     public AuditAction Action { get; private set; }
     public RequestStatus? StatusBefore { get; private set; }
     public RequestStatus StatusAfter { get; private set; }
@@ -17,7 +18,7 @@ public sealed class AuditLog : Entity
 
     private AuditLog() { } // For EF Core
 
-    internal AuditLog(Guid serviceRequestId, Guid actorId, AuditAction action, RequestStatus? statusBefore, RequestStatus statusAfter, string? details, DateTimeOffset occurredAt)
+    internal AuditLog(Guid serviceRequestId, Guid actorId, int sequence, AuditAction action, RequestStatus? statusBefore, RequestStatus statusAfter, string? details, DateTimeOffset occurredAt)
     {
         var detailsTrimmed = string.IsNullOrWhiteSpace(details) ? null : details.Trim();
         if (detailsTrimmed != null && detailsTrimmed.Length > DetailsMaxLength)
@@ -25,6 +26,7 @@ public sealed class AuditLog : Entity
 
         ServiceRequestId = serviceRequestId;
         ActorId = actorId;
+        Sequence = sequence;
         Action = action;
         StatusBefore = statusBefore;
         StatusAfter = statusAfter;
