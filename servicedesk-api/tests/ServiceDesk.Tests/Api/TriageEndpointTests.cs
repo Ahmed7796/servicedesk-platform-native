@@ -132,10 +132,12 @@ public class TriageEndpointTests : IClassFixture<ServiceTokenApiFactory>
     public async Task Detail_ShowsStoredTriage_OrNullBefore()
     {
         var token = await ServiceToken();
+        var requester = User.CreateRequester("r@servicedesk.local", "1001", "hash", "Omar", Guid.NewGuid());
         var request = ServiceRequest.Submit(
-            User.CreateRequester("r@servicedesk.local", "1001", "hash", "Omar", Guid.NewGuid()), "T", "D",
+            requester, "T", "D",
             new WorkflowTemplate(RequestType.Equipment, "w", [(ApproverPosition.DepartmentHead, ApprovalScope.RequesterDepartment)]), DateTimeOffset.UtcNow);
         _factory.Requests.GetByIdAsync(request.Id, Arg.Any<CancellationToken>()).Returns(request);
+        _factory.Users.ListByIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>()).Returns([requester]); // fixture only: detail now looks up names
 
         var get = () => _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, $"/api/service-requests/{request.Id}") { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) } });
         _factory.Triage.GetByRequestIdAsync(request.Id, Arg.Any<CancellationToken>()).Returns((TriageSuggestion?)null);
