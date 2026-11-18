@@ -4,9 +4,9 @@ Unknown fields are ignored. Enums the contract closes are Literals, so drift fai
 Approver positions are open labels (defs.schema.json) and stay plain strings.
 """
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from pydantic.alias_generators import to_camel
 
 RequestType = Literal["Equipment", "SoftwareAccess", "Leave", "Purchase"]
@@ -64,3 +64,25 @@ class ServiceRequestDetail(ServiceRequest):
     requester_name: str
     audit_trail: list[AuditEntry]
     triage: TriageSuggestion | None
+
+
+Position = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Za-z0-9]*$", max_length=30)]
+
+
+class TriageSuggestionInput(ApiModel):
+    """What the copilot posts (TriageFields). Strict, like the API: no extra fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: RequestType
+    priority: TriagePriority
+    suggested_route: list[Position] = Field(min_length=1, max_length=5)
+    summary: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(strict=True, ge=0, le=1)  # no "0.5" strings, no true
+
+    @field_validator("summary")
+    @classmethod
+    def _summary_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("summary must not be blank")
+        return v

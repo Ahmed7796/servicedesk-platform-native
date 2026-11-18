@@ -5,7 +5,7 @@ import httpx
 from pydantic import SecretStr, TypeAdapter, ValidationError
 
 from app.errors import ApiForbiddenError, ApiResponseError, ApiUnavailableError, ServiceAuthError
-from app.models import ServiceRequest, ServiceRequestDetail
+from app.models import ServiceRequest, ServiceRequestDetail, TriageSuggestion, TriageSuggestionInput
 
 TOKEN_PATH = "/api/auth/service-token"
 
@@ -98,7 +98,7 @@ class ServiceDeskClient:
         except httpx.HTTPError as exc:
             raise ApiUnavailableError(f"{method} {path} failed: {exc}") from exc
 
-    # Typed reads only (rule 6: advisory). There is deliberately no public write or generic call here.
+    # Typed calls only (rule 6: advisory): two reads and post_triage. No public generic call.
 
     async def get_request(self, request_id: str) -> ServiceRequestDetail | None:
         """GET /api/service-requests/{id}. Returns None when the API says 404."""
@@ -114,29 +114,37 @@ class ServiceDeskClient:
         resp = await self._request("GET", path)
         return _parse(resp, path, _REQUEST_LIST)
 
+    async def post_triage(self, request_id: str, suggestion: TriageSuggestionInput) -> TriageSuggestion | None:
+        """POST /api/service-requests/{id}/triage. The only write (rule 6). None when the API says 404."""
+        path = f"/api/service-requests/{request_id}/triage"
+        resp = await self._request("POST", path, json=suggestion.model_dump(by_alias=True))
+        if resp.status_code == 404:
+            return None
+        return _parse(resp, path, TriageSuggestion, "POST")
+
 
 _REQUEST_LIST = TypeAdapter(list[ServiceRequest])
 
 
-def _parse(resp: httpx.Response, path: str, model):
+def _parse(resp: httpx.Response, path: str, model, method: str = "GET"):
     """Check the status, then validate the body. Errors name the path and field, never the payload."""
     if resp.status_code == 403:
-        raise ApiForbiddenError(f"GET {path} was refused (403): the service role may not read this")
+        raise ApiForbiddenError(f"{method} {path} was refused (403): the service role may not do this")
     if resp.status_code >= 500:
-        raise ApiUnavailableError(f"GET {path} returned {resp.status_code}")
+        raise ApiUnavailableError(f"{method} {path} returned {resp.status_code}")
     if resp.status_code != 200:
-        raise ApiResponseError(f"GET {path} returned unexpected status {resp.status_code}")
+        raise ApiResponseError(f"{method} {path} returned unexpected status {resp.status_code}")
     try:
         payload = resp.json()
     except ValueError:
-        raise ApiResponseError(f"GET {path} returned a body that is not JSON") from None
+        raise ApiResponseError(f"{method} {path} returned a body that is not JSON") from None
     try:
         if isinstance(model, TypeAdapter):
             return model.validate_python(payload)
         return model.model_validate(payload)
     except ValidationError as exc:
         fields = "; ".join(sorted({".".join(str(p) for p in e["loc"]) + f" ({e['type']})" for e in exc.errors()}))
-        raise ApiResponseError(f"GET {path} returned an invalid payload: {fields}") from None
+        raise ApiResponseError(f"{method} {path} returned an invalid payload: {fields}") from None
 
 
 def build_client(base_url: str, client_id: str, client_secret: SecretStr | str, skew: int, timeout: float):

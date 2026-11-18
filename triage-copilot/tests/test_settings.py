@@ -41,3 +41,14 @@ def test_secret_not_in_repr(monkeypatch):
     s = Settings(_env_file=None)
     assert secret not in repr(s)
     assert s.triage_client_secret.get_secret_value() == secret
+
+
+def test_gemini_settings_default_and_key_is_hidden(monkeypatch):
+    monkeypatch.setenv("SERVICEDESK_API_URL", "http://api:8080")
+    monkeypatch.setenv("TRIAGE_CLIENT_ID", "triage")
+    monkeypatch.setenv("TRIAGE_CLIENT_SECRET", "x")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    s = Settings(_env_file=None)
+    assert s.gemini_api_key is None and s.triage_max_tool_rounds == 4
+    monkeypatch.setenv("GEMINI_API_KEY", "gk-visible?")
+    assert "gk-visible?" not in repr(Settings(_env_file=None))
