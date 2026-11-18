@@ -523,7 +523,11 @@ components:
           $ref: '../events/defs.schema.json#/$defs/requestType'
         priority: { $ref: '#/components/schemas/TriagePriority' }
         suggestedRoute:
-          description: Approver positions in the order the copilot suggests.
+          description: >-
+            Approver positions in the order the copilot suggests. The schema allows any
+            position name, but the API accepts only positions it knows (today the five
+            listed under `approverPosition` examples); an unknown one gets 400 and nothing
+            is stored.
           type: array
           minItems: 1
           maxItems: 5

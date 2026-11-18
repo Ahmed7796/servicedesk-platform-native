@@ -29,8 +29,11 @@
       ]
     },
     "approverPosition": {
+      "description": "Name of an approver position. Deliberately not an enum: positions may become data in the API, so new values can appear without a version bump. Consumers treat it as an opaque label (see README, Rules for consumers).",
       "type": "string",
-      "enum": [
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "maxLength": 30,
+      "examples": [
         "DepartmentHead",
         "ItManager",
         "HrManager",

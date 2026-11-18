@@ -105,11 +105,12 @@ public class OutboxEventFactoryTests
     private static JsonElement LoadExample(string type) =>
         JsonDocument.Parse(File.ReadAllText(Path.Combine(ContractsEventsDir(), "examples", type + ".json"))).RootElement.Clone();
 
-    private static HashSet<string> SchemaEnum(string name)
-    {
-        var defs = JsonDocument.Parse(File.ReadAllText(Path.Combine(ContractsEventsDir(), "defs.schema.json"))).RootElement;
-        return defs.GetProperty("$defs").GetProperty(name).GetProperty("enum").EnumerateArray().Select(e => e.GetString()!).ToHashSet();
-    }
+    private static JsonElement SchemaDef(string name) =>
+        JsonDocument.Parse(File.ReadAllText(Path.Combine(ContractsEventsDir(), "defs.schema.json"))).RootElement
+            .GetProperty("$defs").GetProperty(name).Clone();
+
+    private static HashSet<string> SchemaEnum(string name, string keyword = "enum") =>
+        SchemaDef(name).GetProperty(keyword).EnumerateArray().Select(e => e.GetString()!).ToHashSet();
 
     private static JsonElement Body(OutboxMessage m) => JsonDocument.Parse(m.Body).RootElement.Clone();
 
@@ -181,7 +182,9 @@ public class OutboxEventFactoryTests
     {
         var b = Body(Build(type));
         var statuses = SchemaEnum("requestStatus");
-        var positions = SchemaEnum("approverPosition");
+        // approverPosition is a plain string with a pattern; today's values are its `examples`, and the API emits only those.
+        var positions = SchemaEnum("approverPosition", keyword: "examples");
+        var positionPattern = new Regex(SchemaDef("approverPosition").GetProperty("pattern").GetString()!);
         var scopes = SchemaEnum("approvalScope");
         var types = SchemaEnum("requestType");
         var uuid = new Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
@@ -199,6 +202,7 @@ public class OutboxEventFactoryTests
         foreach (var step in StepsIn(payload))
         {
             Assert.Contains(step.GetProperty("position").GetString()!, positions);
+            Assert.Matches(positionPattern, step.GetProperty("position").GetString()!);
             Assert.Contains(step.GetProperty("scope").GetString()!, scopes);
             Assert.True(step.GetProperty("order").GetInt32() >= 1);
             // decidedStep has no escalatedFrom; the other step shapes do.
