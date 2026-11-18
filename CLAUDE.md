@@ -22,7 +22,7 @@ docker-compose.yml      whole stack: services, PostgreSQL (one per service), Rab
 | Where | Test | Run |
 |---|---|---|
 | `servicedesk-api/` | `dotnet test ServiceDesk.slnx` | `dotnet run --project src/ServiceDesk.Api` |
-| `notification-service/` | `./mvnw test` | `./mvnw spring-boot:run` |
+| `notification-service/` | `./mvnw test` (Docker must be running: Testcontainers starts PostgreSQL) | `./mvnw spring-boot:run` |
 | `triage-copilot/` | `pytest` in Python 3.12; without a local 3.12: `docker run --rm -v "$PWD":/app -w /app python:3.12-slim sh -c "pip install -q -r requirements-dev.txt && pytest -q"` | `uvicorn app.main:app --reload --port 8082` |
 | `triage-copilot/` evals | `python -m evals.run` | prints accuracy over `evals/cases.jsonl` |
 | `mobile/` | `npm test` | `npx expo start` |
