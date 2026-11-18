@@ -2,9 +2,10 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from pydantic import SecretStr
+from pydantic import SecretStr, TypeAdapter, ValidationError
 
-from app.errors import ApiUnavailableError, ServiceAuthError
+from app.errors import ApiForbiddenError, ApiResponseError, ApiUnavailableError, ServiceAuthError
+from app.models import ServiceRequest, ServiceRequestDetail
 
 TOKEN_PATH = "/api/auth/service-token"
 
@@ -96,6 +97,46 @@ class ServiceDeskClient:
             )
         except httpx.HTTPError as exc:
             raise ApiUnavailableError(f"{method} {path} failed: {exc}") from exc
+
+    # Typed reads only (rule 6: advisory). There is deliberately no public write or generic call here.
+
+    async def get_request(self, request_id: str) -> ServiceRequestDetail | None:
+        """GET /api/service-requests/{id}. Returns None when the API says 404."""
+        path = f"/api/service-requests/{request_id}"
+        resp = await self._request("GET", path)
+        if resp.status_code == 404:
+            return None
+        return _parse(resp, path, ServiceRequestDetail)
+
+    async def list_requests(self) -> list[ServiceRequest]:
+        """GET /api/service-requests: every request (the contract has no paging or filter)."""
+        path = "/api/service-requests"
+        resp = await self._request("GET", path)
+        return _parse(resp, path, _REQUEST_LIST)
+
+
+_REQUEST_LIST = TypeAdapter(list[ServiceRequest])
+
+
+def _parse(resp: httpx.Response, path: str, model):
+    """Check the status, then validate the body. Errors name the path and field, never the payload."""
+    if resp.status_code == 403:
+        raise ApiForbiddenError(f"GET {path} was refused (403): the service role may not read this")
+    if resp.status_code >= 500:
+        raise ApiUnavailableError(f"GET {path} returned {resp.status_code}")
+    if resp.status_code != 200:
+        raise ApiResponseError(f"GET {path} returned unexpected status {resp.status_code}")
+    try:
+        payload = resp.json()
+    except ValueError:
+        raise ApiResponseError(f"GET {path} returned a body that is not JSON") from None
+    try:
+        if isinstance(model, TypeAdapter):
+            return model.validate_python(payload)
+        return model.model_validate(payload)
+    except ValidationError as exc:
+        fields = "; ".join(sorted({".".join(str(p) for p in e["loc"]) + f" ({e['type']})" for e in exc.errors()}))
+        raise ApiResponseError(f"GET {path} returned an invalid payload: {fields}") from None
 
 
 def build_client(base_url: str, client_id: str, client_secret: SecretStr | str, skew: int, timeout: float):
