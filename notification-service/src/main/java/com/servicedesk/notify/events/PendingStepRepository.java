@@ -34,7 +34,7 @@ public class PendingStepRepository {
                     step_order = EXCLUDED.step_order, position = EXCLUDED.position,
                     assigned_user_ids = EXCLUDED.assigned_user_ids,
                     pending_since = EXCLUDED.pending_since, last_event_at = EXCLUDED.last_event_at,
-                    closed = false
+                    closed = false, overdue_since = NULL
                 WHERE pending_step.last_event_at < EXCLUDED.last_event_at
                 """)
                 .param("id", requestId).param("title", title).param("requester", requesterId)
@@ -52,7 +52,8 @@ public class PendingStepRepository {
     public int moveToStep(UUID requestId, StepInfo step, Instant at) {
         return jdbc.sql("""
                 UPDATE pending_step SET step_order = :stepOrder, position = :position,
-                    assigned_user_ids = CAST(:assigned AS uuid[]), pending_since = :at, last_event_at = :at
+                    assigned_user_ids = CAST(:assigned AS uuid[]), pending_since = :at, last_event_at = :at,
+                    overdue_since = NULL
                 WHERE request_id = :id AND closed = false AND last_event_at < :at
                 """)
                 .param("id", requestId).param("stepOrder", step.order()).param("position", step.position())

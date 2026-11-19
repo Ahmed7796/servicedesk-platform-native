@@ -30,14 +30,23 @@ public class PushNotifier {
     }
 
     public void notifyPending(PendingNotice n) {
+        deliver(n, "Approval needed", "No approver assigned: " + n.title(),
+                n.title() + " is waiting for your decision");
+    }
+
+    /** The step passed its due time. Same recipients as {@link #notifyPending}. */
+    public void notifyOverdue(PendingNotice n) {
+        String body = "Overdue: " + n.title();
+        deliver(n, "Overdue", body, body);
+    }
+
+    private void deliver(PendingNotice n, String title, String unassignedBody, String assignedBody) {
         if (!enabled) return;
         try {
             boolean unassigned = n.approverUserIds().isEmpty();
             // No user directory here: "unassigned" goes to devices registered by Admins.
             List<String> tokens = unassigned ? devices.tokensForRole("Admin") : devices.tokensForUsers(n.approverUserIds());
-            String title = "Approval needed";
-            String body = unassigned ? "No approver assigned: " + n.title()
-                    : n.title() + " is waiting for your decision";
+            String body = unassigned ? unassignedBody : assignedBody;
             Map<String, String> data = Map.of("requestId", n.requestId().toString(), "type", n.type());
             int failed = 0;
             for (String token : tokens) {
