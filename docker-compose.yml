@@ -121,6 +121,8 @@ services:
       REDIS_HOST: redis
       # How long a step may stay pending before it is overdue (M2-3); ISO-8601. Set PT1M to demo overdue.
       NOTIFY_STEP_SLA: ${NOTIFY_STEP_SLA:-PT24H}
+      # How often the overdue job looks for newly overdue steps (M2-4b); ISO-8601.
+      NOTIFY_OVERDUE_JOB_INTERVAL: ${NOTIFY_OVERDUE_JOB_INTERVAL:-PT1M}
       # Push through Expo (M2-4a). Set NOTIFY_PUSH_ENABLED=false to send nothing.
       NOTIFY_PUSH_ENABLED: ${NOTIFY_PUSH_ENABLED:-true}
       EXPO_PUSH_URL: ${EXPO_PUSH_URL:-https://exp.host/--/api/v2/push/send}

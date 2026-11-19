@@ -27,6 +27,6 @@ class StepSlaPropertiesTest {
     @ParameterizedTest
     @ValueSource(strings = {"PT0S", "-PT1H", "24", "24h", "abc", "PT24", ""})
     void notAStrictPositiveIsoDurationFailsStartupNamingTheEnvVarAndAnExample(String value) {
-        assertThatThrownBy(() -> bind(value)).hasStackTraceContaining("NOTIFY_STEP_SLA").hasStackTraceContaining("PT24H");
+        assertThatThrownBy(() -> bind(value)).rootCause().hasMessageContaining("NOTIFY_STEP_SLA").hasMessageContaining("PT24H");
     }
 }

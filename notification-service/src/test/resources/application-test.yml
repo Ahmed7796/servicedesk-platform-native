@@ -15,6 +15,9 @@ spring:
   datasource:
     password: unused
 app:
+  notify:
+    overdue-job:
+      enabled: false   # no timer in tests
   messaging:
     enabled: false
   jwt:

@@ -50,7 +50,7 @@ class ExpoPushSenderTest {
     }
 
     ExpoPushSender sender(Duration timeout) {
-        return new ExpoPushSender("http://127.0.0.1:" + server.getAddress().getPort() + "/send", timeout);
+        return new ExpoPushSender("http://127.0.0.1:" + server.getAddress().getPort() + "/send", timeout, timeout);
     }
 
     @Test
@@ -104,7 +104,7 @@ class ExpoPushSenderTest {
 
     @Test
     void unreachableServerNeverThrows() {
-        ExpoPushSender s = new ExpoPushSender("http://127.0.0.1:1/send", Duration.ofMillis(300));
+        ExpoPushSender s = new ExpoPushSender("http://127.0.0.1:1/send", Duration.ofMillis(300), Duration.ofMillis(300));
 
         assertThat(s.send(message)).isEqualTo(PushResult.FAILED);
     }
