@@ -198,3 +198,11 @@ async def test_clear_attempts_failure_after_mark_is_best_effort(caplog):
     assert d.action is Action.ACK and EID in store.processed
     text = "\n".join(r.getMessage() for r in caplog.records)
     assert "exhausted" not in text and "hunter2" not in text and "ConnectionError" in text
+
+
+async def test_retry_logs_the_attempt_number_without_text(caplog):
+    store, t, deps = setup(RETRY)
+    with caplog.at_level(logging.INFO):
+        await handle(body(), deps)
+    msg = [r.getMessage() for r in caplog.records if "attempt" in r.getMessage()]
+    assert msg == [f"triage attempt 1/{MAX_ATTEMPTS} failed for request {RID}: ServiceDesk API unavailable, retrying"]

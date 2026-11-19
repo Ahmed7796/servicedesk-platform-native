@@ -87,3 +87,9 @@ def client(http, tokens):
 
 def body(request: httpx.Request) -> dict:
     return json.loads(request.content)
+
+
+@pytest.fixture(autouse=True)
+def _consumer_off(monkeypatch):
+    # The module-level app must never try to reach a broker in tests.
+    monkeypatch.setenv("COPILOT_CONSUMER_ENABLED", "false")

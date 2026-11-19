@@ -82,6 +82,7 @@ async def handle(body: bytes, deps: Deps) -> Decision:
 
 async def _retry_or_dead_letter(deps: Deps, eid: str, rid: str, attempt: int, reason: str) -> Decision:
     if attempt < MAX_ATTEMPTS:
+        log.info("triage attempt %d/%d failed for request %s: %s, retrying", attempt, MAX_ATTEMPTS, rid, reason)
         return Decision(Action.RETRY, BACKOFF_SECONDS[min(attempt, len(BACKOFF_SECONDS)) - 1])
     log.warning("triage retries exhausted for request %s (event %s): %s", rid, eid, reason)
     try:

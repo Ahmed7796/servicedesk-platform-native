@@ -50,24 +50,39 @@ async def _no_hook() -> None:
 
 class Consumer:
     def __init__(self, deps: Deps, *, connect: Callable[[], Awaitable] | None = None, handle=default_handle,
-                 on_ready: Hook = _no_hook, on_lost: Hook = _no_hook) -> None:
+                 on_ready: Hook = _no_hook, on_lost: Hook = _no_hook, ready_retry_seconds: float = 2.0) -> None:
         self._deps, self._connect, self._handle = deps, connect, handle
         self._on_ready, self._on_lost = on_ready, on_lost
+        self._retry_seconds = ready_retry_seconds
+        self._retry_task: asyncio.Task | None = None
+        self._stopped = False
+        self._gen = 0  # bumped by every loss, reconnect and stop: a late on_ready from an older one must not stand
         self._stopping = asyncio.Event()
         self._connection = None
         self._channel = None
 
     async def start(self) -> None:
-        """Connect, declare, consume, then signal ready. Errors propagate: the process must not look healthy."""
+        """Connect, declare, consume, then signal ready. On failure close the connection (a robust one would keep
+        reconnecting in the background) and re-raise: the process must not look healthy."""
         self._connection = await self._connect()
-        self._channel = await self._connection.channel()
-        queue = await declare_topology(self._channel)
-        await queue.consume(self.on_message)
-        self._connection.close_callbacks.add(self._closed)
-        self._connection.reconnect_callbacks.add(self._reconnected)
-        await self._on_ready()
+        try:
+            self._channel = await self._connection.channel()
+            queue = await declare_topology(self._channel)
+            await queue.consume(self.on_message)
+            self._connection.close_callbacks.add(self._closed)
+            self._connection.reconnect_callbacks.add(self._reconnected)
+            await self._signal_ready()
+        except BaseException:
+            await self.stop()
+            raise
 
     async def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
+        self._gen += 1
+        await self._cancel_retry()  # first, so it cannot write the marker again
+        await self._lost()  # readiness goes before anything closes
         self._stopping.set()  # wakes any backoff sleep
         for closer in (self._channel, self._connection):
             if closer is not None:
@@ -76,11 +91,48 @@ class Consumer:
                 except Exception as exc:
                     log.warning("close failed (%s)", type(exc).__name__)
 
+    async def _lost(self) -> None:
+        try:
+            await self._on_lost()
+        except Exception as exc:
+            log.warning("readiness hook failed (%s)", type(exc).__name__)
+
+    async def _cancel_retry(self) -> None:
+        task, self._retry_task = self._retry_task, None
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def _signal_ready(self) -> None:
+        """Run on_ready; if a loss, reconnect or stop happened while it ran, undo it. aio-pika runs the connection
+        callbacks as separate futures, so they can overlap with this one."""
+        gen = self._gen
+        await self._on_ready()
+        if gen != self._gen or self._stopped:
+            await self._lost()
+
     async def _closed(self, *_: object) -> None:
-        await self._on_lost()
+        self._gen += 1
+        await self._cancel_retry()
+        await self._lost()
 
     async def _reconnected(self, *_: object) -> None:
-        await self._on_ready()
+        self._gen += 1
+        await self._cancel_retry()
+        try:
+            await self._signal_ready()
+        except Exception as exc:  # e.g. Redis still down: keep checking until it answers or we stop
+            log.warning("not ready after reconnect (%s), will retry", type(exc).__name__)
+            self._retry_task = asyncio.create_task(self._retry_ready())
+
+    async def _retry_ready(self) -> None:
+        while not self._stopping.is_set():
+            await self._backoff(self._retry_seconds)
+            try:
+                await self._signal_ready()
+                return
+            except Exception as exc:
+                log.warning("still not ready (%s)", type(exc).__name__)
 
     async def on_message(self, message) -> None:
         try:

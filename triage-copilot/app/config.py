@@ -47,6 +47,7 @@ class BrokerSettings(BaseSettings):
     redis_host: str
     rabbitmq_port: int = 5672
     redis_port: int = 6379
+    copilot_ready_file: str = "/tmp/copilot-ready"  # readiness marker; the image HEALTHCHECK reads the same name
 
     @field_validator("rabbitmq_host", "rabbitmq_user", "rabbitmq_password", "redis_host", mode="before")
     @classmethod

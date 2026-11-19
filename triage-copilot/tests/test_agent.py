@@ -216,3 +216,43 @@ async def test_opaque_state_is_carried_unchanged_and_never_posted(tools, client,
     assert "SIG-SENTINEL" not in caplog.text
     assert all(b"SIG-SENTINEL" not in c.content for c in stub.calls)
     assert json.loads(stub.calls[-1].content) == GOOD
+
+
+async def test_posted_logs_one_info_line_with_the_request_id_only(tools, client, stub, caplog):
+    serve(stub)
+    post_ok(stub)
+    llm = FakeLlm([LlmReply(tool_calls=[GET]), LlmReply()], final=json.dumps(GOOD))
+    with caplog.at_level(logging.INFO):
+        out = await run(llm, tools, client)
+    assert out.status == "posted"
+    lines = [r.getMessage() for r in caplog.records if r.name == "app.agent" and r.levelno == logging.INFO]
+    assert lines == [f"triage posted for request {RID}"]
+    assert GOOD["summary"] not in caplog.text and SENTINEL not in caplog.text
+
+
+async def test_posted_line_reaches_a_handler_on_the_app_logger_without_caplog(tools, client, stub):
+    from app.main import configure_logging
+    seen = []
+
+    class H(logging.Handler):
+        def emit(self, record):
+            seen.append(record.getMessage())
+
+    app_logger = logging.getLogger("app")
+    old_level, old_handlers = app_logger.level, list(app_logger.handlers)
+    app_logger.setLevel(logging.NOTSET)
+    h = H()
+    try:
+        configure_logging()  # what create_app does; no caplog level is involved
+        app_logger.addHandler(h)
+        serve(stub)
+        post_ok(stub)
+        llm = FakeLlm([LlmReply(tool_calls=[GET]), LlmReply()], final=json.dumps(GOOD))
+        await run(llm, tools, client)
+    finally:
+        app_logger.removeHandler(h)
+        app_logger.setLevel(old_level)
+        for x in list(app_logger.handlers):
+            if x not in old_handlers:
+                app_logger.removeHandler(x)
+    assert f"triage posted for request {RID}" in seen
