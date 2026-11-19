@@ -1,4 +1,4 @@
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,3 +30,36 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     # Built on demand, so /health never needs credentials.
     return Settings()
+
+
+class ConfigError(Exception):
+    """A required environment variable is missing or invalid. Names variables, never values."""
+
+
+class BrokerSettings(BaseSettings):
+    """RabbitMQ and Redis connection, same variable names as notification-service. No defaults for host or login."""
+
+    model_config = SettingsConfigDict(extra="ignore", hide_input_in_errors=True)
+
+    rabbitmq_host: str
+    rabbitmq_user: str
+    rabbitmq_password: SecretStr
+    redis_host: str
+    rabbitmq_port: int = 5672
+    redis_port: int = 6379
+
+    @field_validator("rabbitmq_host", "rabbitmq_user", "rabbitmq_password", "redis_host", mode="before")
+    @classmethod
+    def _blank_is_missing(cls, value):
+        if isinstance(value, str) and not value.strip():
+            raise ValueError("blank")
+        return value
+
+
+def get_broker_settings() -> BrokerSettings:
+    """Fail fast at startup with the names of the bad variables (not their values)."""
+    try:
+        return BrokerSettings(_env_file=None)
+    except ValidationError as exc:
+        names = sorted({str(e["loc"][0]).upper() for e in exc.errors() if e["loc"]})
+        raise ConfigError(f"Missing or invalid environment variables: {', '.join(names)}") from None
