@@ -199,3 +199,20 @@ async def test_retryable_llm_error_is_retryable_and_posts_nothing(tools, client,
 async def test_other_llm_errors_stay_non_retryable(tools, client, stub):
     out = await run(FakeLlm(step_error=RuntimeError("x")), tools, client)
     assert (out.status, out.retryable) == ("failed", False)
+
+
+async def test_opaque_state_is_carried_unchanged_and_never_posted(tools, client, stub, caplog):
+    from app.llm import Opaque
+    caplog.set_level(logging.DEBUG)
+    serve(stub)
+    post_ok(stub)
+    state = Opaque(b"SIG-SENTINEL")
+    llm = FakeLlm([LlmReply(tool_calls=[ToolCall("get_request", {"request_id": RID}, state)]), LlmReply()],
+                  final=json.dumps(GOOD))
+    out = await run(llm, tools, client)
+    assert out.status == "posted"
+    model_turn = next(t for t in llm.final_history[1:] if t.role == "model")
+    assert model_turn.tool_calls[0].state is state
+    assert "SIG-SENTINEL" not in caplog.text
+    assert all(b"SIG-SENTINEL" not in c.content for c in stub.calls)
+    assert json.loads(stub.calls[-1].content) == GOOD

@@ -12,7 +12,7 @@ from pydantic import SecretStr
 
 from app.config import Settings
 from app.errors import LlmRetryableError
-from app.llm import LlmReply, ToolCall, Turn
+from app.llm import LlmReply, Opaque, ToolCall, Turn
 
 # Keywords Gemini's schema mode may reject. Strict validation in agent.py / tools.py stays the real gate.
 _DROP = {"additionalProperties", "$defs", "$ref", "title", "format", "default"}
@@ -59,8 +59,12 @@ def _contents(history: list[Turn]) -> list[types.Content]:
         if turn.role == "user":
             out.append(types.Content(role="user", parts=[types.Part(text=turn.text)]))
         elif turn.role == "model":
-            parts = [types.Part.from_function_call(name=c.name, args=c.args if isinstance(c.args, dict) else {})
-                     for c in turn.tool_calls]
+            parts = []
+            for c in turn.tool_calls:
+                part = types.Part.from_function_call(name=c.name, args=c.args if isinstance(c.args, dict) else {})
+                if c.state is not None:  # the model's thought signature, sent back unchanged on the same part
+                    part.thought_signature = c.state.reveal()
+                parts.append(part)
             out.append(types.Content(role="model", parts=parts or [types.Part(text=turn.text)]))
         else:  # tool results go back as a user-role turn of function responses
             parts = [types.Part.from_function_response(name=n, response={"result": text})
@@ -69,10 +73,20 @@ def _contents(history: list[Turn]) -> list[types.Content]:
     return out
 
 
+def _tool_calls(response) -> list[ToolCall]:
+    """Function-call parts in order, each with its own signature. response.function_calls drops the signature."""
+    parts = [p for cand in (response.candidates or [])[:1] if cand.content for p in (cand.content.parts or [])]
+    return [ToolCall(p.function_call.name, dict(p.function_call.args or {}),
+                     Opaque(p.thought_signature) if p.thought_signature else None)
+            for p in parts if p.function_call]
+
+
 class GeminiClient:
-    def __init__(self, api_key: SecretStr, model: str, client=None) -> None:
+    def __init__(self, api_key: SecretStr, model: str, client=None, timeout_ms: int = 15000) -> None:
         self._model = model
-        self._client = client or genai.Client(api_key=api_key.get_secret_value())  # key is not kept on self
+        # HttpOptions.timeout is in milliseconds. retry_options stays None: the SDK then never retries.
+        self._client = client or genai.Client(api_key=api_key.get_secret_value(),  # key is not kept on self
+                                              http_options=types.HttpOptions(timeout=timeout_ms))
 
     async def step(self, system: str, history: list[Turn], tools: list[dict]) -> LlmReply:
         declarations = [types.FunctionDeclaration(name=t["name"], description=t["description"],
@@ -82,7 +96,7 @@ class GeminiClient:
             system_instruction=system, tools=[types.Tool(function_declarations=declarations)],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
         response = await self._generate(history, config)
-        return LlmReply(tool_calls=[ToolCall(c.name, dict(c.args or {})) for c in response.function_calls or []])
+        return LlmReply(tool_calls=_tool_calls(response))
 
     async def final(self, system: str, history: list[Turn], schema: dict) -> str:
         config = types.GenerateContentConfig(
@@ -111,4 +125,5 @@ def build_llm(settings: Settings) -> GeminiClient | None:
     """None without a key: the copilot still starts and triage is skipped."""
     if settings.gemini_api_key is None:
         return None
-    return GeminiClient(settings.gemini_api_key, settings.gemini_model)
+    return GeminiClient(settings.gemini_api_key, settings.gemini_model,
+                        timeout_ms=int(settings.llm_timeout_seconds * 750))  # 75% of the agent's wait_for

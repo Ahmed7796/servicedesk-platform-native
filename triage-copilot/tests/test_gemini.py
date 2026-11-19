@@ -206,3 +206,93 @@ def test_empty_or_blank_key_means_no_key(raw):
 def test_real_key_is_kept_secret():
     base = dict(_env_file=None, servicedesk_api_url="http://x", triage_client_id="t", triage_client_secret="s")
     assert Settings(**base, gemini_api_key=KEY).gemini_api_key.get_secret_value() == KEY
+
+
+# ---- thought signatures (M3-3b-fix)
+
+SIG = b"SIG-SENTINEL-bytes"
+
+
+async def test_signature_is_echoed_unchanged_on_the_same_part():
+    fake = FakeGenAI(text="{}", calls=[("get_request", {"request_id": RID}, SIG)])
+    llm = adapter(fake)
+    reply = await llm.step("S", [Turn("user", "x")], TOOL_SPECS)
+    history = [Turn("user", "x"), Turn("model", tool_calls=tuple(reply.tool_calls)),
+               Turn("tool", tool_results=(("get_request", "W"),))]
+    await llm.final("S", history, SCHEMA)
+    model_content = fake.requests[1]["contents"][1]
+    assert model_content.role == "model"
+    assert model_content.parts[0].function_call.name == "get_request"
+    assert model_content.parts[0].thought_signature == SIG
+
+
+async def test_parallel_calls_keep_each_signature_on_its_own_part_and_text_part_is_ignored():
+    fake = FakeGenAI(text="{}", lead_text="thinking", calls=[("get_request", {"request_id": RID}, SIG),
+                                                  ("get_requester_history", {"requester_id": RID}),
+                                                  ("get_request", {"request_id": RID}, b"two")])
+    llm = adapter(fake)
+    reply = await llm.step("S", [Turn("user", "x")], TOOL_SPECS)
+    assert [c.name for c in reply.tool_calls] == ["get_request", "get_requester_history", "get_request"]
+    await llm.final("S", [Turn("user", "x"), Turn("model", tool_calls=tuple(reply.tool_calls))], SCHEMA)
+    parts = fake.requests[1]["contents"][1].parts
+    assert [p.thought_signature for p in parts] == [SIG, None, b"two"]
+
+
+async def test_no_signature_sends_none():
+    fake = FakeGenAI(text="{}", calls=[("get_request", {"request_id": RID})])
+    llm = adapter(fake)
+    reply = await llm.step("S", [Turn("user", "x")], TOOL_SPECS)
+    await llm.final("S", [Turn("user", "x"), Turn("model", tool_calls=tuple(reply.tool_calls))], SCHEMA)
+    assert fake.requests[1]["contents"][1].parts[0].thought_signature is None
+
+
+async def test_signature_never_appears_in_repr_logs_or_serialisation(caplog):
+    caplog.set_level(logging.DEBUG)
+    fake = FakeGenAI(text="{}", calls=[("get_request", {"request_id": RID}, SIG)])
+    reply = await adapter(fake).step("S", [Turn("user", "x")], TOOL_SPECS)
+    call = reply.tool_calls[0]
+    turn = Turn("model", tool_calls=(call,))
+    assert call.state is not None
+    assert "SIG-SENTINEL" not in repr(call) + repr(turn) + repr(call.state) + str(call.state)
+    assert "SIG-SENTINEL" not in caplog.text
+    import copy
+    import pickle
+
+    from pydantic import TypeAdapter
+    for dump in (json.dumps, lambda o: TypeAdapter(object).dump_json(o), pickle.dumps, copy.deepcopy):
+        with pytest.raises(Exception):
+            dump(call.state)
+
+
+def test_toolcall_equality_ignores_the_opaque_state():
+    from app.llm import Opaque
+    assert ToolCall("a", {}, Opaque(b"1")) == ToolCall("a", {})
+
+
+def test_default_model_and_sdk_timeout_below_the_agent_bound(monkeypatch):
+    seen = {}
+    monkeypatch.setattr("app.gemini.genai.Client", lambda **kw: seen.update(kw) or object())
+    base = dict(_env_file=None, servicedesk_api_url="http://x", triage_client_id="t", triage_client_secret="s")
+    s = Settings(**base, gemini_api_key=KEY)
+    assert s.gemini_model == "gemini-3.5-flash-lite"
+    build_llm(s)
+    opts = seen["http_options"]
+    assert opts.timeout == 15000  # milliseconds in google-genai 3.5.0
+    assert opts.timeout / 1000 < s.llm_timeout_seconds
+    assert opts.retry_options is None  # SDK default is never retry; the bounded retry is M3-3c's
+
+
+async def test_blocked_reply_with_no_content_is_an_empty_reply():
+    from types import SimpleNamespace
+    fake = FakeGenAI(text="")
+    async def gen(**kw):
+        return SimpleNamespace(text=None, function_calls=None, candidates=[SimpleNamespace(content=None)])
+    fake.aio.models.generate_content = lambda **kw: gen(**kw)
+    assert (await adapter(fake).step("S", [Turn("user", "x")], TOOL_SPECS)).tool_calls == []
+
+
+def test_aiohttp_is_not_installed():
+    # The SDK's aiohttp transport retries connection errors even with retry_options=None, which would break
+    # "M3-3c's bounded retry is the only retry". If this fails, re-check the SDK's retry behaviour first.
+    import importlib.util
+    assert importlib.util.find_spec("aiohttp") is None
