@@ -23,14 +23,14 @@ public class ExpoPushSender implements PushSender {
 
     @Autowired
     public ExpoPushSender(@Value("${app.notify.push.url}") String url) {
-        this(url, Duration.ofSeconds(5));
+        this(url, Duration.ofSeconds(10), Duration.ofSeconds(5));
     }
 
-    ExpoPushSender(String url, Duration timeout) {
+    ExpoPushSender(String url, Duration connectTimeout, Duration readTimeout) {
         this.url = url;
-        HttpClient http = HttpClient.newBuilder().connectTimeout(timeout).build();
+        HttpClient http = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
-        factory.setReadTimeout(timeout);
+        factory.setReadTimeout(readTimeout);
         this.client = RestClient.builder().requestFactory(factory).build();
     }
 

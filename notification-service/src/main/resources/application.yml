@@ -34,6 +34,9 @@ spring:
 app:
   notify:
     step-sla: ${NOTIFY_STEP_SLA:PT24H}   # ISO-8601; dueAt = pendingSince + this (PT1M for a demo)
+    overdue-job:
+      enabled: true                                  # false in the test profiles: no timer
+      interval: ${NOTIFY_OVERDUE_JOB_INTERVAL:PT1M}   # strict ISO-8601; delay between runs
     push:
       enabled: ${NOTIFY_PUSH_ENABLED:true}   # false turns sending off
       url: ${EXPO_PUSH_URL:https://exp.host/--/api/v2/push/send}

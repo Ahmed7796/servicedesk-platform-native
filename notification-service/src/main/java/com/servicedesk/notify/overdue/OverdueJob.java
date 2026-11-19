@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * Marks steps newly overdue and pushes their approvers, once per step. The claim commits
  * before any push (claim, then push: at most once; a failed push is not retried).
- * Nothing schedules {@link #runOnce()} yet (M2-4b-ii). Logs carry counts and request ids only.
+ * {@link OverdueSchedulingConfig} schedules {@link #runOnce()}. Logs carry counts and request ids only.
  */
 @Component
 public class OverdueJob {

@@ -11,6 +11,8 @@ spring:
     password: unused
 app:
   notify:
+    overdue-job:
+      enabled: false   # no timer in tests
     step-sla: PT1H
   messaging:
     enabled: false
