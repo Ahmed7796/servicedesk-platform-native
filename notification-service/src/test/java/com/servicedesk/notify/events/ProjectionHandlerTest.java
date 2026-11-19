@@ -245,6 +245,6 @@ class ProjectionHandlerTest {
                 WHERE table_name = 'pending_step' ORDER BY ordinal_position""")
                 .query(String.class).list();
         assertThat(cols).containsExactly("request_id", "title", "requester_id", "step_order",
-                "position", "assigned_user_ids", "pending_since", "last_event_at", "closed");
+                "position", "assigned_user_ids", "pending_since", "last_event_at", "closed", "overdue_since");
     }
 }
