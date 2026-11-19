@@ -71,6 +71,7 @@ async def triage(request_id: str, llm: LlmClient, tools: TriageTools, client: Se
         return _outcome(request_id, "failed", f"unexpected {type(exc).__name__}")
     if stored is None:
         return _outcome(request_id, "failed", "request not found when posting")
+    log.info("triage posted for request %s", request_id)  # id only: no request or model text
     return TriageOutcome("posted")
 
 
