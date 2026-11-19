@@ -21,6 +21,28 @@ export type DeviceRegistration = {
     platform: 'ios' | 'android';
 };
 
+/**
+ * The `data` object of every push notification this service sends through Expo (M2-4).
+ * Not an HTTP body: it reaches the phone inside the notification. The phone uses only
+ * `requestId` to open the request; `type` is informational. Consumers ignore unknown
+ * `type` values and unknown fields (as with events, contracts/events/README.md).
+ * The visible title and body are plain text for people and are not part of this contract.
+ *
+ */
+export type PushData = {
+    /**
+     * The request the notification is about.
+     */
+    requestId: string;
+    /**
+     * Why it was sent: the event type that made a step pending (`request.submitted`,
+     * `request.step_approved`), or `step.overdue` from the overdue job.
+     *
+     */
+    type: string;
+    [key: string]: unknown;
+};
+
 export type OverdueStep = {
     requestId: string;
     /**
