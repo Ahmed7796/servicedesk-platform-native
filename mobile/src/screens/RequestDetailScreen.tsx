@@ -1,16 +1,23 @@
 import React from 'react';
 import { ActivityIndicator, Button, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { ServiceRequestDetail } from '../api/generated/servicedesk';
 import type { RootStackParamList } from '../navigation/types';
 import { positionLabel } from '../api/positions';
 import { AuditTrail } from '../components/AuditTrail';
+import { DecisionPanel } from '../components/DecisionPanel';
 import { TriageSuggestionBlock } from '../components/TriageSuggestionBlock';
 import { useRequestDetail } from './useRequestDetail';
+import { useDecision } from './useDecision';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RequestDetail'>;
 
-export function RequestDetailScreen({ route }: Props) {
+export function RequestDetailScreen({ route, navigation }: Props) {
   const { detail, loading, error, reload } = useRequestDetail(route.params.requestId);
+  const decision = useDecision(route.params.requestId, {
+    reload,
+    onDone: () => navigation.popTo('PendingApprovals', { refresh: Date.now() }),
+  });
 
   if (!detail) {
     return (
@@ -53,9 +60,20 @@ export function RequestDetailScreen({ route }: Props) {
         ))}
       </View>
       <TriageSuggestionBlock triage={detail.triage} />
+      {decision.error ? (
+        <Text testID="decision-error" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
+          {decision.error}
+        </Text>
+      ) : null}
+      {canDecide(detail) ? <DecisionPanel submitting={decision.submitting} onApprove={decision.approve} onReject={decision.reject} /> : null}
       <AuditTrail entries={detail.auditTrail} />
     </ScrollView>
   );
+}
+
+/** The contract has no "can decide" field; this mirrors PendingItem. The server stays the authority (403/409). */
+function canDecide(d: ServiceRequestDetail): boolean {
+  return (d.status === 'Submitted' || d.status === 'InReview') && d.steps.some((s) => s.decision === 'Pending');
 }
 
 const styles = StyleSheet.create({

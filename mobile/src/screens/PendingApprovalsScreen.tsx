@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -8,8 +8,17 @@ import { usePendingApprovals } from './usePendingApprovals';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PendingApprovals'>;
 
-export function PendingApprovalsScreen({ navigation }: Props) {
+export function PendingApprovalsScreen({ navigation, route }: Props) {
   const { items, overdue, loading, refreshing, error, refresh } = usePendingApprovals();
+
+  // A decision made on the detail screen sends a new `refresh` value; the first render already loaded.
+  const refreshParam = route.params?.refresh;
+  const seen = useRef(refreshParam);
+  useEffect(() => {
+    if (refreshParam === seen.current) return;
+    seen.current = refreshParam;
+    void refresh();
+  }, [refreshParam, refresh]);
 
   if (loading && items === null) {
     return (
