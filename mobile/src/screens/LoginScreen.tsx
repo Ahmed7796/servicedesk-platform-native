@@ -5,6 +5,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { login } from '../api/generated/servicedesk';
 import { tokenStore } from '../auth/tokenStore';
 import { loginErrorMessage } from '../auth/loginErrors';
+import { registerForPush } from '../push/registerForPush';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -37,6 +38,7 @@ export function LoginScreen({ navigation, route }: Props) {
       const result = await login({ body: { identifier: identifier.trim(), password } });
       if (result.data) {
         await tokenStore.set(result.data.accessToken);
+        void registerForPush(); // fire-and-forget: never delays or fails the sign-in
         navigation.replace('PendingApprovals'); // replace, so Back does not return to Login
         succeeded = true;
         return;
