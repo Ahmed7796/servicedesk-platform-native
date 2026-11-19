@@ -6,6 +6,6 @@
     "orientation": "portrait",
     "android": { "package": "dev.servicedesk.mobile" },
     "ios": { "bundleIdentifier": "dev.servicedesk.mobile" },
-    "plugins": ["expo-secure-store"]
+    "plugins": ["expo-secure-store", "expo-notifications"]
   }
 }

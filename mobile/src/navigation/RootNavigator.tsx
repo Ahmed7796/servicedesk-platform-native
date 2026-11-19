@@ -6,6 +6,7 @@ import { PendingApprovalsScreen } from '../screens/PendingApprovalsScreen';
 import { RequestDetailScreen } from '../screens/RequestDetailScreen';
 import { SignOutButton } from '../components/SignOutButton';
 import { tokenStore } from '../auth/tokenStore';
+import { registerForPush } from '../push/registerForPush';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -17,7 +18,10 @@ export function RootNavigator() {
     tokenStore
       .get()
       .then((token) => !!token, () => false)
-      .then(setSignedIn);
+      .then((value) => {
+        if (value) void registerForPush(); // already signed in: register again, fire-and-forget
+        setSignedIn(value);
+      });
   }, []);
   if (signedIn === null) return null;
   return (

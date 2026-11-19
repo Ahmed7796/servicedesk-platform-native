@@ -3,3 +3,6 @@ node_modules/
 dist/
 .env*
 !.env.example
+
+# Firebase config for Android push (M4-5); added by hand, never committed
+google-services.json
