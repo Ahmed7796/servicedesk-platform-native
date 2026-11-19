@@ -111,6 +111,24 @@ def test_canned_mode_needs_no_key_and_never_builds_the_llm(monkeypatch, caplog):
     assert "canned demo mode" in caplog.text and "SENTINEL" not in caplog.text
 
 
+def test_lifespan_gives_triage_a_limiter_sized_from_settings(monkeypatch):
+    import asyncio
+    import app.main as m
+    set_env(monkeypatch, COPILOT_RATE_LIMIT_PER_MINUTE="2")
+    seen = []
+
+    async def fake_triage(rid, llm, tools, client, settings, limiter=None):
+        seen.append(limiter)
+        return None
+    monkeypatch.setattr(m, "triage", fake_triage)
+    rec = Rec()
+    with TestClient(create_app(consumer_enabled=True, wiring=wiring(rec))):
+        asyncio.run(rec.deps.triage("rid"))
+        asyncio.run(rec.deps.triage("rid"))
+    assert seen[0] is seen[1] and seen[0] is not None  # one shared limiter for the process
+    assert [seen[0].try_acquire() for _ in range(3)] == [True, True, False]
+
+
 def test_bad_mode_fails_fast_naming_only_the_variable(monkeypatch):
     set_env(monkeypatch, COPILOT_MODE="bogus-VALUE-1")
     rec = Rec()

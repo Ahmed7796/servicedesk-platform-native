@@ -16,6 +16,7 @@ from app.errors import ApiForbiddenError, ApiResponseError, ApiUnavailableError,
 from app.llm import LlmClient, Turn
 from app.models import TriageSuggestionInput
 from app.prompt import SYSTEM, user_prompt, wrap_data
+from app.ratelimit import RateLimiter
 from app.servicedesk_client import ServiceDeskClient
 from app.tools import TOOL_SPECS, TriageTools
 
@@ -42,13 +43,15 @@ def _outcome(request_id: str | None, status: str, reason: str, retryable: bool =
 
 
 async def triage(request_id: str, llm: LlmClient, tools: TriageTools, client: ServiceDeskClient,
-                 settings: Settings) -> TriageOutcome:
+                 settings: Settings, limiter: RateLimiter | None = None) -> TriageOutcome:
     try:
         request_id = str(UUID(request_id))
     except (ValueError, TypeError, AttributeError):
         return _outcome(None, "failed", "invalid request id")
     if settings.copilot_mode == "llm" and settings.gemini_api_key is None:  # canned mode needs no key
         return _outcome(request_id, "skipped", "no key, skipping")
+    if limiter is not None and settings.copilot_mode == "llm" and not limiter.try_acquire():  # canned: no LLM call
+        return _outcome(request_id, "skipped", "rate limited, nothing posted")
     try:
         async with asyncio.timeout(settings.triage_total_timeout_seconds):
             raw = await _converse(request_id, llm, tools, settings)
@@ -56,6 +59,8 @@ async def triage(request_id: str, llm: LlmClient, tools: TriageTools, client: Se
                 suggestion = TriageSuggestionInput.model_validate_json(raw)
             except ValidationError as exc:
                 return _outcome(request_id, "failed", f"invalid model output, nothing posted ({_describe(exc)})")
+            if suggestion.confidence < settings.copilot_min_confidence:
+                return _outcome(request_id, "skipped", "low confidence, nothing posted")
             stored = await client.post_triage(request_id, suggestion)
     except _LlmCallTimeout:
         return _outcome(request_id, "timed_out", "llm call timeout", retryable=True)

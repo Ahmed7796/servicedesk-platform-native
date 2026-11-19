@@ -13,6 +13,8 @@ rejects, cancels or fulfils. This skeleton has `/health` and a service-token cli
 | `TOKEN_REFRESH_SKEW_SECONDS` | Optional, default 60: refresh this long before expiry |
 | `HTTP_TIMEOUT_SECONDS` | Optional, default 10 |
 | `COPILOT_MODE` | Optional, `llm` (default) or `canned`. Canned is a demo mode: rule-based suggestions, no LLM call and no `GEMINI_API_KEY` needed. Every canned summary starts with `[Canned demo]`. A bad value stops startup and names only the variable |
+| `COPILOT_MIN_CONFIDENCE` | Optional, default 0.5, a number from 0 to 1. A valid suggestion below it is not posted |
+| `COPILOT_RATE_LIMIT_PER_MINUTE` | Optional, default 10, integer 1 to 1000. Triage runs per minute for this process; above it a request is skipped, not queued. Canned mode is not limited |
 
 ## Test (Python 3.12, in Docker)
 

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import SecretStr, ValidationError, field_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 20.0
     triage_max_tool_rounds: int = 4
     triage_total_timeout_seconds: float = 60.0
+    copilot_min_confidence: float = Field(default=0.5, ge=0, le=1, allow_inf_nan=False)  # below: nothing is posted
+    copilot_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)  # triage runs per minute, per process
     copilot_mode: Literal["llm", "canned"] = "llm"  # canned: rule-based demo suggestions, no LLM and no key
 
     @field_validator("copilot_mode", mode="before")
