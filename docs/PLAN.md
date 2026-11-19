@@ -39,7 +39,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M2-1 | Spring Boot skeleton, PostgreSQL migrations, JWT validation, health endpoint | notify-spring | `./mvnw test` passes; service starts in Compose | done |
 | M2-2 | Consumers for the six events with Redis de-duplication | notify-spring | Replaying the same event twice changes the tables once | done |
 | M2-3 | Due times on pending steps (`dueAt` = `pendingSince` + `NOTIFY_STEP_SLA`, default `PT24H`) and `GET /notify/overdue` scoped by role. The scheduled overdue job moved to M2-4 (only push needs it) | notify-spring | A step past its due time appears in `GET /notify/overdue`; a `TriageService` token gets 403 | done |
-| M2-4 | `POST /notify/devices`, a scheduled job that marks steps newly overdue (once per step), and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted`; a `TriageService` token gets 403 on `POST /notify/devices` | todo |
+| M2-4 | `POST /notify/devices`, a scheduled job that marks steps newly overdue (once per step), and push sending through Expo (behind an interface, faked in tests) | notify-spring | Test shows the right approver is notified on `request.submitted`; a `TriageService` token gets 403 on `POST /notify/devices` | done |
 
 ## Milestone 3: Triage copilot (days 6 to 8)
 
@@ -49,7 +49,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M3-2a | Tool `get_request` (`GET /api/service-requests/{id}`): typed models, compact LLM-facing result, errors as tool results. No workflow-template tool: the route is the request's own `steps` | copilot-python | Tool tested against a stubbed API; read-only (rule 6) | done |
 | M3-2b | Tool `get_requester_history` (`GET /api/service-requests` filtered by `requesterId` on the client, newest first, capped), tool specs and dispatcher. Depends on M3-2a | copilot-python | Tool functions tested against a stubbed API; no secret or token in any result | done |
 | M3-3a | Agent loop with an `LlmClient` interface and a fake LLM: read-only tool rounds (max 4), one final tool-less structured answer, strict validation, typed `post_triage` as the only write; prompt-injection hardening | copilot-python | Tested with a fake LLM: only the read tools and one validated triage post are ever called; invalid output is never posted | done |
-| M3-3b | Gemini adapter (`google-genai`) behind `LlmClient`; 429, 5xx and network errors retryable. Depends on M3-3a and Ahmed's SDK/model approval | copilot-python | Adapter tests with a fake SDK; one manual call against Gemini with a real key | todo |
+| M3-3b | Gemini adapter (`google-genai`) behind `LlmClient`; 429, 5xx and network errors retryable. Depends on M3-3a and Ahmed's SDK/model approval | copilot-python | Adapter tests with a fake SDK; one manual call against Gemini with a real key | done |
 | M3-3c | Consumer: `copilot.triage` queue bound to `request.submitted`, Redis de-duplication, bounded retry then DLQ, readiness marker for Compose. Depends on M3-3b | copilot-python | A submitted request gets a suggestion within the demo flow | todo |
 | M3-4 | Eval set of 50 labelled requests in `evals/cases.jsonl` and `python -m evals.run` | copilot-python | Script prints category and priority accuracy; result recorded in the README | todo |
 | M3-5 | Guardrails: output schema validation, low-confidence fallback, rate limit, canned mode for the public demo | copilot-python | Invalid model output never reaches the API; canned mode needs no API key | todo |
@@ -66,7 +66,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M4-2b | Start on PendingApprovals when a token is stored; on 401 from any non-login call, clear the token and return to Login. Depends on M4-2a | mobile-rn | A stored token opens PendingApprovals; an expired token returns to Login | done |
 | M4-3a | Pending approvals list from `pending-for-me` with the copilot summary (advisory), pull-to-refresh, empty and error states | mobile-rn | List matches `pending-for-me` for the signed-in user | done |
 | M4-3b | Overdue badge from `GET /notify/overdue` (list still works if it fails) and a sign-out header button. Depends on M4-3a | mobile-rn | A step in the caller's overdue list shows a badge; sign-out returns to Login with the token cleared | done |
-| M4-4 | Request detail with audit trail, approve and reject with comment | mobile-rn | Approving on the phone moves the request to the next step; 403 and 409 show clear messages | todo |
+| M4-4 | Request detail with audit trail, approve and reject with comment | mobile-rn | Approving on the phone moves the request to the next step; 403 and 409 show clear messages | done |
 | M4-5 | Register the device for push and handle an incoming notification | mobile-rn | Submitting a request raises a notification on the approver's phone | todo |
 
 ## Milestone 5: Integration (day 12)
