@@ -50,5 +50,6 @@ def test_gemini_settings_default_and_key_is_hidden(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     s = Settings(_env_file=None)
     assert s.gemini_api_key is None and s.triage_max_tool_rounds == 4
+    assert s.gemini_model == "gemini-3.5-flash-lite"
     monkeypatch.setenv("GEMINI_API_KEY", "gk-visible?")
     assert "gk-visible?" not in repr(Settings(_env_file=None))

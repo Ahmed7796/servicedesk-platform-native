@@ -3,10 +3,32 @@ from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
 
+class Opaque:
+    """A provider-specific value (Gemini: a thought signature) that is only handed back to the provider.
+
+    Nothing may read, log or serialise it: repr/str are fixed text, and copy, pickle and JSON paths refuse it."""
+
+    __slots__ = ("_value",)
+
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    def reveal(self) -> object:
+        """For the provider adapter only."""
+        return self._value
+
+    def __repr__(self) -> str:
+        return "<opaque>"
+
+    def __reduce__(self):
+        raise TypeError("Opaque cannot be copied or serialised")
+
+
 @dataclass(frozen=True)
 class ToolCall:
     name: str
     args: object
+    state: Opaque | None = field(default=None, repr=False, compare=False)  # echoed back to the model, never read
 
 
 @dataclass(frozen=True)
