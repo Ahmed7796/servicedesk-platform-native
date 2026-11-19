@@ -82,7 +82,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M2-3 | #30 | `GET /notify/overdue` scoped by role; `dueAt = pendingSince + NOTIFY_STEP_SLA` at query time; strict ISO-8601 SLA (startup fails on `24`, `24h`); 88 tests. Job moved to M2-4 |
 | M3-3a | #31 | Agent loop behind `LlmClient` with a fake LLM: ≤ 4 read-only tool rounds, one tool-less final call, strict `TriageSuggestionInput`, typed `post_triage` as the only write; no model/request text in logs; markers can't be rebuilt; 118 tests |
 
-**As of 2026-11-18 (late), fourth round open for review.** Three PRs wait for Ahmed; nothing merged since `e670cbb` (PR #32). Each passed the reviewer subagent with no blocking finding.
+**As of 2026-11-18 (late), fourth round.** Merged by Ahmed as PRs #33 to #36 (main at `e76cc2d`).
 
 | Task | PR | Result |
 |---|---|---|
@@ -90,12 +90,20 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M3-3b | #34 | `GeminiClient` (google-genai 3.5.0): read-only tool declarations, AFC off, sanitised JSON schema for the final call, 429/5xx/transport retryable, blank key = no key, `app.gemini_smoke`; Compose and `.env.example` gain `GEMINI_API_KEY`/`GEMINI_MODEL`; stack healthy with an empty key; 153 tests. **Live call not yet run (no key in `.env`)** |
 | M2-4a | #35 | `POST /notify/devices` (hand-checked body; roles from the JWT), V3 `device`, `PushSender` + Expo `RestClient` adapter, push only when the projection row changed (commit, push, Redis mark), Admin devices for unassigned steps; Compose gains `NOTIFY_PUSH_ENABLED`/`EXPO_PUSH_URL`; 135 tests. Lead's Compose check: register/re-register/400/403/401 as expected; a submit pushed to `it.manager`, Expo rejected the fake token and the device was deleted |
 
+**As of 2026-11-19, fifth round open for review.** Three PRs wait for Ahmed (independent; any order). Each passed the reviewer subagent with no blocking finding (M4-4b after one blocking fix and a second pass).
+
+| Task | PR | Result |
+|---|---|---|
+| M3-3b-fix | #37 | Live call after #34 found: thought signatures dropped (400), `gemini-2.5-flash` closed to new keys (404), no SDK timeout (hang). Fix: signature carried in an unloggable `Opaque` on `ToolCall` and echoed per part; default `gemini-3.5-flash-lite` (code, Compose, `.env.example`); `HttpOptions` 15000 ms, no SDK retries; `content=None` is an empty reply; test that `aiohttp` is absent. **Live smoke passed 3 times**; 162 tests |
+| M2-4b-i | #38 | V4 `overdue_since` (reset behind the `last_event_at` guard), one-statement claim with the strict M2-3 cutoff, `runOnce` non-transactional (reflection test), `notifyOverdue`; lock-wait test on real PostgreSQL proves claim-once. **Not scheduled yet.** Compose: V1 to V4 apply, stack healthy; 151 tests |
+| M4-4b | #39 | Approve/reject per contract, gate on Submitted/InReview with a pending step, plain 403/409/400/404/network messages, in-flight guard, `popTo` the existing list with `refresh` (real-stack test); 111 tests. Not run on a device |
+
 **Dependencies approved by Ahmed (2026-11-18):**
 - notification-service: Spring Boot 4.1.2 starters (web, security, oauth2-resource-server, actuator, jdbc, flyway) with `flyway-database-postgresql` and `postgresql`; test starters. Testcontainers deferred to M2-2.
 - triage-copilot: `fastapi==0.164.0`, `uvicorn==0.54.0`, `httpx==0.28.1`, `pydantic-settings==2.16.3`; dev `pytest==9.2.0` (anyio plugin and `httpx.MockTransport` instead of pytest-asyncio and respx).
 - mobile: Expo 58 / RN 0.88.1 / React 19.3.1, React Navigation 7 (native-stack), screens, safe-area-context, expo-secure-store; dev typescript 6.0.3, jest, jest-expo, Testing Library, `@hey-api/openapi-ts` 0.99.0. No web packages. No mock server: M4-2 tests mock `fetch`, and the smoke script hits the real API.
 - notification-service (M2-2): `spring-boot-starter-amqp`, `spring-boot-starter-data-redis` (Boot BOM 4.1.2); test `testcontainers-postgresql`, `testcontainers-junit-jupiter`, `testcontainers-rabbitmq` 2.0.5, `spring-boot-testcontainers`. Redis tests use a plain `redis:7.4-alpine` container.
-- triage-copilot (M3-3b, M3-3c), approved 2026-11-18 (second session): `google-genai==3.5.0`, `aio-pika==10.2.3`, `redis==8.1.0`. Model id comes from `GEMINI_MODEL` in `.env`; Ahmed left the choice open ("doesn't matter now"), so the settings default is `gemini-2.5-flash`.
+- triage-copilot (M3-3b, M3-3c), approved 2026-11-18 (second session): `google-genai==3.5.0`, `aio-pika==10.2.3`, `redis==8.1.0`. Model id comes from `GEMINI_MODEL` in `.env`; Ahmed left the choice open ("doesn't matter now"), so the settings default was `gemini-2.5-flash`; after the live call (it is closed to new keys) the lead moved it to `gemini-3.5-flash-lite` in M3-3b-fix.
 
 **Parallel phase mechanics:** one git worktree per service under `.worktrees/` (ignored via `.git/info/exclude`), reused across that service's tasks. Builders don't touch Compose; the lead adds each service and resolves the Compose conflicts when two services land at once.
 
@@ -115,22 +123,27 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Copilot readiness (lead, M3-3):** no `/ready` endpoint (it isn't in the contract). In M3-3c the consumer writes a marker file after `queue.bind` and a Redis ping succeed; the image HEALTHCHECK requires the marker and `/health` 200, and the api then waits on the copilot in Compose like it does on notify.
 
 **Open decisions for Ahmed**
-- Review and merge PRs #33, #34, #35 (independent; any order).
-- Put a `GEMINI_API_KEY` in `.env` (root and `.worktrees/copilot/.env`) so the lead can run `python -m app.gemini_smoke` (Docker form in `docs/handoffs/M3-3b.md`). Until then, which schema keywords Gemini accepts is assumed.
+- Review and merge PRs #37, #38, #39, and this docs PR.
 
 **Decided 2026-11-18 (late, lead)**
 - M4-4b buttons: Approve/Reject show only when status is `Submitted` or `InReview` and a step with `decision` `Pending` exists; the server stays the authority (403/409). Reject sends a required `reason`, approve an optional `comment` (contract). 403 text names no specific reason. A `refresh?: number` param on PendingApprovals reloads the list after a decision; a 409 refetches the detail.
 - M2-4: split into 4a (above) and 4b. Push is at most once (a crash between commit and push loses it); roles are a registration-time snapshot.
 
+**Decided 2026-11-19 (lead)**
+- Default Gemini model `gemini-3.5-flash-lite` (answered live; 3.5/3.7/3.8-flash were 503 at the time). `GEMINI_MODEL` in `.env` overrides.
+- M2-4b split into 4b-i (#38) and 4b-ii. Expo connect timeout 10 s, read 5 s (4b-ii).
+- After a decision the phone uses `popTo`, not `navigate` (see the M4-4b mistake row).
+
 **Next (plan-only first; one builder per service)**
-- **M2-4b:** V4 migration `overdue_since` on `pending_step` (reset to NULL when the step changes), `@Scheduled` job claiming newly overdue steps with one atomic `UPDATE … RETURNING` (safe across overlapping runs), push through M2-4a's `PushNotifier`; `NOTIFY_OVERDUE_JOB_INTERVAL` (ISO, default `PT1M`) for the lead to add to Compose. Consider a longer Expo connect timeout (one cold call timed out at 5 s in the Compose check).
-- **M4-4b:** approve and reject as decided above; plain 403/409/400/404/network messages; in-flight guard. Acceptance: approving on the phone moves the request on.
-- **M3-3c:** aio-pika consumer, queue `copilot.triage` on `request.submitted` with DLQ `copilot.triage.dlq`, Redis `processed:copilot:{eventId}` marked after the post, 3 attempts then DLQ, readiness marker, FastAPI `lifespan` owns client, consumer and Redis. Never log `str(exc)` for model errors (M3-3b keeps the provider's message on non-retryable `APIError`); log the failure reason class once retries run out. Lead: Compose env, api waits for copilot healthy.
-- Then M3-4 (evals; Gate B: Ahmed owns the 50 labelled cases), M3-5 (guardrails, canned mode), M4-5 (push on the phone), M5.
+- **M2-4b-ii:** `OverdueJobProperties` (strict ISO `NOTIFY_OVERDUE_JOB_INTERVAL`, default `PT1M`), `@EnableScheduling` behind `app.notify.overdue-job.enabled` (false in `test`, `dbtest`, `pipeline`, with a test that the scheduler is absent), `@Scheduled` fixed delay calling `runOnce`, Expo connect timeout 10 s. Lead: Compose and `.env.example` line; Compose check with `NOTIFY_STEP_SLA=PT1M` that one overdue push fires once.
+- **M3-3c:** aio-pika consumer, queue `copilot.triage` on `request.submitted`, DLQ `copilot.triage.dlq`, Redis `processed:copilot:{eventId}` marked after the post, 3 attempts then DLQ, readiness marker, `lifespan` owns client, consumer and Redis. Never log `str(exc)` for model errors; log the failure class when retries run out. Lead: Compose env, api waits for copilot healthy, live end-to-end (submit through the API, suggestion appears).
+- **M4-5:** register the device for push (`POST /notify/devices`, no 401 interceptor on the notification client) and handle an incoming notification. Needs `expo-notifications` (dependency: ask Ahmed). First run on a real device.
+- Then M3-4 (evals; Gate B: Ahmed owns the 50 labelled cases), M3-5 (guardrails, canned mode), M5.
+- Mobile follow-up: cold-cache jest timeouts in four screen suites (consider `testTimeout`).
 
 **Resuming in a new session**
 - Builders are fresh agents per session; the previous session's builder agents are gone. Brief from this summary and the task's hand-offs.
-- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), on the PR #35, #34 and #33 branches; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends.
+- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), on the PR #38, #37 and #39 branches; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends.
 - Lead's verification helpers live in the scratchpad and are gone with the session; recreate as needed: a Python 3.12 test runner (`docker run -v "$PWD":/repo -w /repo/triage-copilot python:3.12-slim …`), a Compose check under its own project name (`docker compose -p sdverify up --build -d --wait` from a worktree, `down -v` after), the OpenAPI-to-JSON-Schema converter (see "How the loop runs now"), and the demo-account login loop (password `ServiceDesk!2026`, seeded in Development only).
 
 **Open follow-ups**
@@ -179,3 +192,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-18 | M3-3a | copilot-python built the invalid-output reason from pydantic error locations; with `extra="forbid"` the location is the model-chosen key, so a steered model could write PII or fake log lines (newlines included) into logs | Reviewer (reproduced it) | Reasons name only known fields and error types. The lead's later check also caught the marker defang rewriting normal text ("request data"); the angle-bracket collapse alone is enough |
 | 2026-11-18 | lead | The M2-2b builder hit the 5-hour usage limit mid-task; its files were intact and it resumed after the reset | Task notification | Resume the same agent with SendMessage after the reset; check the worktree first |
 | 2026-11-18 | M4-4 | Lead's brief said approve and reject each take "a comment"; the contract has an optional `comment` on approve and a required `reason` on reject | mobile-rn builder reading `servicedesk-api.yaml` at plan time | Briefs quote request bodies from the contract instead of paraphrasing them |
+| 2026-11-18 | M3-3b | copilot-python's adapter rebuilt Gemini function-call turns from `ToolCall(name, args)`, dropping the thought signature Gemini 3 models require (400 on the final call); the default `gemini-2.5-flash` was already retired for new keys (404); with no SDK timeout a 503-overloaded model hung the smoke run. 153 tests and a clean review passed because the fake SDK can't know provider protocol rules | Lead's live `gemini_smoke` run after merge (PR #34) | Provider adapters get a live call before their PR is opened, not after merge; a fake SDK proves our mapping, not the provider's rules. Follow-up fix task opened (M3-3b-fix) |
+| 2026-11-18 | M2-4b-i | notify-spring wrote the overdue claim and job before their tests (CLAUDE.md: tests first for event handling) | The builder's own report | Mutations run afterwards (claim guard, both resets) each failed tests; the lock-wait concurrency test on real PostgreSQL is the proof, not the barrier test |
+| 2026-11-18 | M4-4b | mobile-rn's first double-tap test used separate awaited presses; the disabled button then hid a missing in-flight ref, and a press handler returning the request promise made `await fireEvent.press` hang until the request settled | The builder's mutation run (dropping the ref guard passed) | Fire double-tap presses inside one `act()`; press handlers return `void`. RNTL `fireEvent` is async in this setup, so await it |
+| 2026-11-19 | M4-4b | Lead's brief prescribed `navigation.navigate('PendingApprovals', { refresh })` after a decision; in React Navigation 7 that pushes a second list screen (the refresh effect never fires, and Back shows the decided request with disabled buttons). Tests mocked `navigation` and only checked the call | Reviewer reading the installed `StackRouter` source | Briefs name the intent ("return to the list and reload it"), not the navigation call. Navigation changes get one test against the real stack navigator |
