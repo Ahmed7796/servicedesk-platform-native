@@ -98,7 +98,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M2-4b-i | #38 | V4 `overdue_since` (reset behind the `last_event_at` guard), one-statement claim with the strict M2-3 cutoff, `runOnce` non-transactional (reflection test), `notifyOverdue`; lock-wait test on real PostgreSQL proves claim-once. **Not scheduled yet.** Compose: V1 to V4 apply, stack healthy; 151 tests |
 | M4-4b | #39 | Approve/reject per contract, gate on Submitted/InReview with a pending step, plain 403/409/400/404/network messages, in-flight guard, `popTo` the existing list with `refresh` (real-stack test); 111 tests. Not run on a device |
 
-**As of 2026-11-19 (later), sixth round.** #41 to #45 merged by Ahmed (main at `8e23c3c`); #46 open. M2-4, M3-3b and M4-4 ticked in PLAN.
+**As of 2026-11-19 (later), sixth round.** #41 to #48 merged by Ahmed. M2-4, M3-3b and M4-4 ticked in PLAN.
 
 | Task | PR | Result |
 |---|---|---|
@@ -107,7 +107,19 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M4-5a | #43 | `expo-notifications` 58.1.9 + `expo-constants` 58.0.16; registration after login and on start, silent without an EAS projectId or permission, no 401 handling on the notify client; `google-services.json` ignored; 133 tests. Not run on a device |
 | M3-3c-1 | #44 | Handler, de-dup (`processed:copilot:*`, 7 d), Redis attempt counter (3 then DLQ, DLQ never marked), lenient envelope; 225 tests with real Redis |
 | M3-3c-2a | #45 | aio-pika consumer: topology matching the API's exchange, decision mapping, cancellable backoff, poison message to DLQ; 237 tests |
-| M3-3c-2b | #46 (open) | Readiness marker (generation counter, stale marker cleared), lifespan, HEALTHCHECK, Redis timeouts, app logger at INFO; Compose wiring (api waits for copilot; copilot no longer waits for api). **Live E2E: three submitted requests got Gemini triage** (one after two 503 retries), request unchanged, DLQ empty. **Closes M3-3c**; 283 tests with real Redis |
+| M3-3c-2b | #46 | Readiness marker (generation counter, stale marker cleared), lifespan, HEALTHCHECK, Redis timeouts, app logger at INFO; Compose wiring (api waits for copilot; copilot no longer waits for api). **Live E2E: three submitted requests got Gemini triage** (one after two 503 retries), request unchanged, DLQ empty. **Closes M3-3c**; 283 tests with real Redis |
+| M4-5b | #48 | Tap opens RequestDetail with one stack entry (popTo, push or reset as needed), signed out goes to Login, cold-start tap once, foreground push refreshes the list, uses the generated `PushData` type; 174 tests. Not on a device |
+
+**As of 2026-11-19 (evening), seventh round open for review.** Main at `924ec35`. Stacked pairs: merge #50 before #51, #52 before #53, #49 before #54.
+
+| Task | PR | Result |
+|---|---|---|
+| M5-1 | #49 | nginx proxy on `PROXY_PORT` (8000): `/api`, `/notify`, everything else 404; api and notify bound to 127.0.0.1 (rule 8). The app's `smoke:login` signs in through it. Merges cleanly after #46 |
+| M3-4a | #50 | Gate B ("agent drafts, Ahmed checks"): 50 draft cases (balanced; 28 plain, 9 ambiguous, 6 mislabelled, 7 injection), `review.csv`, `finalize.py` (Ahmed only), `load_checked` gate, scoring with both accuracy figures; two real names replaced in review; 267 tests. **Waits on Ahmed's labels** |
+| M3-4b | #51 | `python -m evals.run`: only through the gate, stub client captures the post, per-case retry (failed is not wrong), bounded concurrency, `--out` confined; 293 tests. Live smoke in a scratch copy hit Gemini 503/504 on every model; runner behaved correctly |
+| M3-5a | #52 | `COPILOT_MODE=canned`: rule-based suggestion through the same `triage()`, validation and single post; `[Canned demo]` prefix; no key. Compose: two canned suggestions posted end to end. Not injection-resistant (keyword table); stated |
+| M3-5b | #53 | `COPILOT_MIN_CONFIDENCE` 0.5 (skip, nothing posted) and `COPILOT_RATE_LIMIT_PER_MINUTE` 10 (per process, terminal skip). Compose with limit 1: limited and skipped as designed; a retried request was dropped, now a stated limit. **Closes M3-5** |
+| M5-2 | #54 | `scripts/e2e.py` through the proxy: submit, triage, two approvals, fulfil, audit trail, notify. **Passed on a fresh `docker compose up --build`** (merged with #52, canned mode) |
 
 **Dependencies approved by Ahmed (2026-11-18):**
 - notification-service: Spring Boot 4.1.2 starters (web, security, oauth2-resource-server, actuator, jdbc, flyway) with `flyway-database-postgresql` and `postgresql`; test starters. Testcontainers deferred to M2-2.
@@ -134,8 +146,9 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Copilot readiness (lead, M3-3):** no `/ready` endpoint (it isn't in the contract). In M3-3c the consumer writes a marker file after `queue.bind` and a Redis ping succeed; the image HEALTHCHECK requires the marker and `/health` 200, and the api then waits on the copilot in Compose like it does on notify.
 
 **Open decisions for Ahmed**
-- Review and merge #46 (M3-3c-2b) and this docs PR.
-- Before the device test (M4-5): development build (needs `expo-dev-client@58.0.21`, not approved) or preview APK (no new dependency; the API URL is baked in at build time). Steps in `docs/handoffs/M4-5a.md`.
+- Review and merge #49 to #54 (pairs above), and this docs PR.
+- **Gate B:** fill `category` and `priority` on all 50 rows of `triage-copilot/evals/review.csv`, run `python -m evals.finalize --reviewer "<name>"`, commit `cases.jsonl`. Then the lead runs `python -m evals.run` (command in #51) and records the number.
+- **Device test (M4-5):** development build (needs `expo-dev-client@58.0.21`, not approved) or preview APK. Steps in `docs/handoffs/M4-5a.md`.
 
 **Decided 2026-11-18 (late, lead)**
 - M4-4b buttons: Approve/Reject show only when status is `Submitted` or `InReview` and a step with `decision` `Pending` exists; the server stays the authority (403/409). Reject sends a required `reason`, approve an optional `comment` (contract). 403 text names no specific reason. A `refresh?: number` param on PendingApprovals reloads the list after a decision; a 409 refetches the detail.
@@ -150,16 +163,20 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - Ahmed: M4-5 is "code now, device later"; `PushData` contract added (#41).
 - Lead: M3-3c split into 1, 2a, 2b; malformed envelopes go to the DLQ at once; a bug escaping the handler is rejected to the DLQ (no poison loop); Redis tests read `REDIS_TEST_URL` (no fakeredis, no docker inside tests); `COPILOT_CONSUMER_ENABLED` is for tests and local runs only.
 
-**Next (plan-only first; one builder per service)**
-- **M4-5b:** tap a notification to open RequestDetail (`popTo`, one stack entry), the cold-start tap, a foreground refresh of the pending list; uses the generated `PushData` type (#41). Then Ahmed's device setup and the PLAN acceptance on a phone.
-- **M3-4:** evals. Gate B: Ahmed owns the 50 labelled cases in `evals/cases.jsonl`.
-- **M3-5:** guardrails and canned mode (the public demo needs no key).
-- **M5:** reverse proxy (M5-1) and the end-to-end script (M5-2), lead only.
-- Follow-ups: cold-cache jest timeouts in four mobile suites; the overdue interval has no lower bound; the copilot's Gemini client is not closed at shutdown.
+**Decided 2026-11-19 (evening, lead)**
+- Gemini: when limited or below 0.5 confidence, post nothing (Option B; retries count against the limit). Canned mode is the path for the recorded demo (M6-2): `COPILOT_MODE=canned`, `GEMINI_API_KEY` empty.
+- Proxy: nginx 1.27-alpine on port 8000; api and notify no longer published on all interfaces.
+
+**Next**
+- After Ahmed's label check: the M3-4 eval run and its number (evals/README.md, later the top-level README).
+- After Ahmed's device build: M4-5 acceptance on a phone (foreground, background and killed tap).
+- **M6-1 README** (lead): what it does, architecture diagram, two-minute quick start (canned mode by default for a stranger), eval result, known limits.
+- M6-2 demo recording and M6-3 write-up (Ahmed); M6-4 deploy (lead): needs TLS and a Swagger route on the proxy, `ASPNETCORE_ENVIRONMENT` not Development, rate limiting on `service-token`.
+- Follow-ups: cold-cache jest timeouts in four mobile suites; the overdue interval has no lower bound; the Gemini client is not closed at shutdown; Option A for rate-limited retries.
 
 **Resuming in a new session**
 - Builders are fresh agents per session; the previous session's builder agents are gone. Brief from this summary and the task's hand-offs.
-- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), on the PR #42, #46 and #43 branches; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends.
+- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), on the PR #53 (copilot), #42 (notify) and #48 (mobile) branches; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends.
 - Lead's verification helpers live in the scratchpad and are gone with the session; recreate as needed: a Python 3.12 test runner (`docker run -v "$PWD":/repo -w /repo/triage-copilot python:3.12-slim …`), a Compose check under its own project name (`docker compose -p sdverify up --build -d --wait` from a worktree, `down -v` after), the OpenAPI-to-JSON-Schema converter (see "How the loop runs now"), and the demo-account login loop (password `ServiceDesk!2026`, seeded in Development only).
 
 **Open follow-ups**
@@ -214,3 +231,5 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | 2026-11-19 | M4-4b | Lead's brief prescribed `navigation.navigate('PendingApprovals', { refresh })` after a decision; in React Navigation 7 that pushes a second list screen (the refresh effect never fires, and Back shows the decided request with disabled buttons). Tests mocked `navigation` and only checked the call | Reviewer reading the installed `StackRouter` source | Briefs name the intent ("return to the list and reload it"), not the navigation call. Navigation changes get one test against the real stack navigator |
 | 2026-11-19 | M3-3c-1 | copilot-python put `mark_processed` and `clear_attempts` in one try block; a Redis failure between them sent a posted, marked event to the DLQ on attempt 3 (a DLQ replay would then be skipped as a duplicate) | Reviewer reading the failure paths against the "DLQ path is not marked" decision | After a terminal mark succeeds, follow-up bookkeeping is best effort; each store call gets its own failure test |
 | 2026-11-19 | M2-4b-ii (lead) | The lead's local Expo stand-in read only `Content-Length` bodies; notify's RestClient sends chunked, so the first Compose check crashed in the stub, not in notify | The stub's own traceback | Test doubles for HTTP peers handle chunked and gzip bodies |
+| 2026-11-19 | M3-4a | copilot-python's "invented" eval names included two real people (a singer's legal name, an actor) | Reviewer reading every case | Generated test data with names gets a real-person check in review |
+| 2026-11-19 | M5-2 (lead) | The lead's E2E script parsed every body as JSON (`/proxy-health` is text) and expected an `Approved` audit entry the API never writes (the last approval is `StepApproved`) | The script's first two runs | Check expected values against a real response before asserting them |
