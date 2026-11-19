@@ -10,6 +10,7 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI
 
 from app.agent import triage
+from app.canned import CannedLlm
 from app.config import BrokerSettings, get_broker_settings, get_settings
 from app.dedup import RedisProcessedStore
 from app.consumer import Consumer, robust_connector
@@ -76,7 +77,12 @@ def create_app(consumer_enabled: bool | None = None, wiring: Wiring | None = Non
             tokens = ServiceTokenProvider(http, settings.triage_client_id, settings.triage_client_secret,
                                           skew_seconds=settings.token_refresh_skew_seconds)
             client = ServiceDeskClient(http, tokens)
-            llm = w.build_llm(settings)  # None: no key, so every event is skipped, marked and acked
+            canned = settings.copilot_mode == "canned"
+            if canned:
+                log.warning("canned demo mode: no LLM is called, suggestions are rule-based and marked [Canned demo]")
+                llm = CannedLlm()
+            else:
+                llm = w.build_llm(settings)  # None: no key, so every event is skipped, marked and acked
 
             async def run_triage(request_id: str):
                 return await triage(request_id, llm, TriageTools(client), client, settings)

@@ -95,6 +95,31 @@ def test_no_llm_means_triage_is_none(monkeypatch):
     assert rec.deps.triage is None
 
 
+def test_canned_mode_needs_no_key_and_never_builds_the_llm(monkeypatch, caplog):
+    set_env(monkeypatch, COPILOT_MODE="canned", GEMINI_API_KEY=None)
+    rec = Rec()
+
+    def boom(settings):
+        raise AssertionError("build_llm must not run in canned mode")
+
+    w = wiring(rec)
+    w.build_llm = boom
+    with caplog.at_level(logging.INFO):
+        with TestClient(create_app(consumer_enabled=True, wiring=w)):
+            pass
+    assert rec.deps.triage is not None  # unlike llm mode without a key, events are triaged
+    assert "canned demo mode" in caplog.text and "SENTINEL" not in caplog.text
+
+
+def test_bad_mode_fails_fast_naming_only_the_variable(monkeypatch):
+    set_env(monkeypatch, COPILOT_MODE="bogus-VALUE-1")
+    rec = Rec()
+    with pytest.raises(ConfigError) as err:
+        with TestClient(create_app(consumer_enabled=True, wiring=wiring(rec))):
+            pass
+    assert "COPILOT_MODE" in str(err.value) and "bogus-VALUE-1" not in str(err.value) and rec.events == []
+
+
 def test_failing_close_does_not_skip_the_rest(monkeypatch, caplog):
     set_env(monkeypatch)
     rec = Rec()
