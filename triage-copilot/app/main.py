@@ -16,6 +16,7 @@ from app.dedup import RedisProcessedStore
 from app.consumer import Consumer, robust_connector
 from app.gemini import build_llm
 from app.handler import Deps
+from app.ratelimit import RateLimiter
 from app.readiness import Marker, Readiness
 from app.servicedesk_client import ServiceDeskClient, ServiceTokenProvider
 from app.tools import TriageTools
@@ -84,8 +85,10 @@ def create_app(consumer_enabled: bool | None = None, wiring: Wiring | None = Non
             else:
                 llm = w.build_llm(settings)  # None: no key, so every event is skipped, marked and acked
 
+            limiter = RateLimiter(settings.copilot_rate_limit_per_minute)  # one per process, shared by every event
+
             async def run_triage(request_id: str):
-                return await triage(request_id, llm, TriageTools(client), client, settings)
+                return await triage(request_id, llm, TriageTools(client), client, settings, limiter)
 
             redis = w.make_redis(broker)
             closers.append(redis.aclose)

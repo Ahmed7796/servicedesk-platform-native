@@ -88,3 +88,39 @@ def test_get_settings_error_names_missing_variables_without_values(monkeypatch):
     with pytest.raises(ConfigError) as err:
         get_settings()
     assert "TRIAGE_CLIENT_ID" in str(err.value) and "secret-VALUE-9" not in str(err.value)
+
+
+def test_guardrail_defaults(monkeypatch):
+    _base(monkeypatch)
+    monkeypatch.delenv("COPILOT_MIN_CONFIDENCE", raising=False)
+    monkeypatch.delenv("COPILOT_RATE_LIMIT_PER_MINUTE", raising=False)
+    s = Settings(_env_file=None)
+    assert (s.copilot_min_confidence, s.copilot_rate_limit_per_minute) == (0.5, 10)
+
+
+@pytest.mark.parametrize("name,value", [
+    ("COPILOT_MIN_CONFIDENCE", "1.5"), ("COPILOT_MIN_CONFIDENCE", "-0.1"), ("COPILOT_MIN_CONFIDENCE", "nan"),
+    ("COPILOT_MIN_CONFIDENCE", "inf"), ("COPILOT_MIN_CONFIDENCE", "abc-VALUE-1"),
+    ("COPILOT_RATE_LIMIT_PER_MINUTE", "0"), ("COPILOT_RATE_LIMIT_PER_MINUTE", "-1"),
+    ("COPILOT_RATE_LIMIT_PER_MINUTE", "1001"), ("COPILOT_RATE_LIMIT_PER_MINUTE", "x-VALUE-1"),
+    ("COPILOT_RATE_LIMIT_PER_MINUTE", "2.5"),
+])
+def test_bad_guardrail_values_fail_naming_only_the_variable(monkeypatch, name, value):
+    from app.config import ConfigError, get_settings
+    _base(monkeypatch)
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ConfigError) as err:
+        get_settings()
+    assert name in str(err.value) and value not in str(err.value)
+
+
+@pytest.mark.parametrize("name,value,field,want", [
+    ("COPILOT_MIN_CONFIDENCE", "0", "copilot_min_confidence", 0.0),
+    ("COPILOT_MIN_CONFIDENCE", "1", "copilot_min_confidence", 1.0),
+    ("COPILOT_RATE_LIMIT_PER_MINUTE", "1", "copilot_rate_limit_per_minute", 1),
+    ("COPILOT_RATE_LIMIT_PER_MINUTE", "1000", "copilot_rate_limit_per_minute", 1000),
+])
+def test_guardrail_bounds_are_inclusive(monkeypatch, name, value, field, want):
+    _base(monkeypatch)
+    monkeypatch.setenv(name, value)
+    assert getattr(Settings(_env_file=None), field) == want
