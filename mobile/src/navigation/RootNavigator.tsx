@@ -7,6 +7,7 @@ import { RequestDetailScreen } from '../screens/RequestDetailScreen';
 import { SignOutButton } from '../components/SignOutButton';
 import { tokenStore } from '../auth/tokenStore';
 import { registerForPush } from '../push/registerForPush';
+import { useNotifications } from '../push/useNotifications';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -23,6 +24,7 @@ export function RootNavigator() {
         setSignedIn(value);
       });
   }, []);
+  useNotifications(signedIn !== null);
   if (signedIn === null) return null;
   return (
     <Stack.Navigator initialRouteName={signedIn ? 'PendingApprovals' : 'Login'}>
