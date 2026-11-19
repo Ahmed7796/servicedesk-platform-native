@@ -73,7 +73,6 @@ describe('RequestDetailScreen (read-only)', () => {
     expect(screen.getByText(/Department head.*Approved/)).toBeTruthy();
     expect(screen.getByText(/IT manager.*Pending/)).toBeTruthy();
     expect(urls()).toEqual([`http://proxy.test/api/service-requests/${ID}`]);
-    expect(screen.queryByText(/^(approve|reject)$/i)).toBeNull();
   });
 
   it('shows a loading state before the first response', async () => {

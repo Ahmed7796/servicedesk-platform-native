@@ -72,6 +72,24 @@ afterEach(() => {
 });
 
 describe('PendingApprovalsScreen', () => {
+  it('reloads the list when the refresh param changes, and not for the same value or on first render', async () => {
+    serve([ok([item(A)])]);
+    const navigation = { navigate } as never;
+    const element = (refresh?: number) => (
+      <PendingApprovalsScreen navigation={navigation} route={{ key: 'k', name: 'PendingApprovals', params: { refresh } }} />
+    );
+    const view = await render(element(undefined));
+    await screen.findByTestId(`pending-row-${A}`);
+    expect(count('pending-for-me')).toBe(1);
+
+    await view.rerender(element(1));
+    await waitFor(() => expect(count('pending-for-me')).toBe(2));
+    await view.rerender(element(1));
+    expect(count('pending-for-me')).toBe(2);
+    await view.rerender(element(2));
+    await waitFor(() => expect(count('pending-for-me')).toBe(3));
+  });
+
   it('renders the pending items in the API order from pending-for-me', async () => {
     serve([ok([item(A), item(B, { title: 'Second one' })])]);
     await renderScreen();

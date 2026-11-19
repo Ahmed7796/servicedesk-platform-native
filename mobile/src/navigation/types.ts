@@ -1,5 +1,5 @@
 export type RootStackParamList = {
   Login: { notice?: string } | undefined;
-  PendingApprovals: undefined;
+  PendingApprovals: { refresh?: number } | undefined;
   RequestDetail: { requestId: string };
 };
