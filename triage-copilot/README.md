@@ -12,6 +12,7 @@ rejects, cancels or fulfils. This skeleton has `/health` and a service-token cli
 | `TRIAGE_CLIENT_SECRET` | Service client secret (from `.env`, never the repo) |
 | `TOKEN_REFRESH_SKEW_SECONDS` | Optional, default 60: refresh this long before expiry |
 | `HTTP_TIMEOUT_SECONDS` | Optional, default 10 |
+| `COPILOT_MODE` | Optional, `llm` (default) or `canned`. Canned is a demo mode: rule-based suggestions, no LLM call and no `GEMINI_API_KEY` needed. Every canned summary starts with `[Canned demo]`. A bad value stops startup and names only the variable |
 
 ## Test (Python 3.12, in Docker)
 

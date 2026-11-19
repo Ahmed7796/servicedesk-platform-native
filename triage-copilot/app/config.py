@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +19,15 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 20.0
     triage_max_tool_rounds: int = 4
     triage_total_timeout_seconds: float = 60.0
+    copilot_mode: Literal["llm", "canned"] = "llm"  # canned: rule-based demo suggestions, no LLM and no key
+
+    @field_validator("copilot_mode", mode="before")
+    @classmethod
+    def _mode_text(cls, value):
+        if isinstance(value, str):
+            value = value.strip().lower()
+            return value or "llm"  # blank (an empty Compose default) means the default
+        return value
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod
@@ -28,8 +39,12 @@ class Settings(BaseSettings):
 
 
 def get_settings() -> Settings:
-    # Built on demand, so /health never needs credentials.
-    return Settings()
+    """Built on demand, so /health never needs credentials. Fails fast naming variables, never values."""
+    try:
+        return Settings(_env_file=None)
+    except ValidationError as exc:
+        names = sorted({str(e["loc"][0]).upper() for e in exc.errors() if e["loc"]})
+        raise ConfigError(f"Missing or invalid environment variables: {', '.join(names)}") from None
 
 
 class ConfigError(Exception):

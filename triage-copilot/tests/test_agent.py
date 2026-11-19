@@ -256,3 +256,8 @@ async def test_posted_line_reaches_a_handler_on_the_app_logger_without_caplog(to
             if x not in old_handlers:
                 app_logger.removeHandler(x)
     assert f"triage posted for request {RID}" in seen
+
+
+async def test_llm_mode_without_a_key_still_skips_even_if_mode_field_default(tools, client, stub):
+    out = await triage(RID, FakeLlm(), tools, client, cfg().model_copy(update={"gemini_api_key": None}))
+    assert out.status == "skipped" and stub.calls == []

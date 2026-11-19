@@ -152,6 +152,8 @@ services:
       # Gemini (M3-3b). An empty key is allowed: the copilot starts and skips triage.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      # llm (default) or canned: a rule-based demo suggestion marked [Canned demo], no GEMINI_API_KEY needed (M3-5a).
+      COPILOT_MODE: ${COPILOT_MODE:-llm}
       # Event consumer (M3-3c): queue copilot.triage on request.submitted. Same credentials as the rabbitmq service.
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER is not set. Copy .env.example to .env and fill it in.}

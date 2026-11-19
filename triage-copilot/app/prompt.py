@@ -23,6 +23,17 @@ def user_prompt(request_id: str) -> str:
     return f"Triage the service request with id {request_id}."
 
 
+_PROMPT_ID = re.compile(r"Triage the service request with id ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.")
+
+
+def request_id_from_prompt(text: str) -> str:
+    """The inverse of user_prompt, for the canned model (the LlmClient interface carries no id). ValueError if it differs."""
+    m = _PROMPT_ID.fullmatch(text)
+    if not m:
+        raise ValueError("unexpected prompt")
+    return m.group(1)
+
+
 # Runs of three or more < or > become two, so the data can never contain <<< or >>> and cannot rebuild
 # our markers, whatever the casing or spacing of the words. Ordinary text is left alone.
 _ANGLES = re.compile(r"<{3,}|>{3,}")
