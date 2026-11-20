@@ -50,9 +50,9 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 | M3-2b | Tool `get_requester_history` (`GET /api/service-requests` filtered by `requesterId` on the client, newest first, capped), tool specs and dispatcher. Depends on M3-2a | copilot-python | Tool functions tested against a stubbed API; no secret or token in any result | done |
 | M3-3a | Agent loop with an `LlmClient` interface and a fake LLM: read-only tool rounds (max 4), one final tool-less structured answer, strict validation, typed `post_triage` as the only write; prompt-injection hardening | copilot-python | Tested with a fake LLM: only the read tools and one validated triage post are ever called; invalid output is never posted | done |
 | M3-3b | Gemini adapter (`google-genai`) behind `LlmClient`; 429, 5xx and network errors retryable. Depends on M3-3a and Ahmed's SDK/model approval | copilot-python | Adapter tests with a fake SDK; one manual call against Gemini with a real key | done |
-| M3-3c | Consumer: `copilot.triage` queue bound to `request.submitted`, Redis de-duplication, bounded retry then DLQ, readiness marker for Compose. Depends on M3-3b | copilot-python | A submitted request gets a suggestion within the demo flow | todo |
+| M3-3c | Consumer: `copilot.triage` queue bound to `request.submitted`, Redis de-duplication, bounded retry then DLQ, readiness marker for Compose. Depends on M3-3b | copilot-python | A submitted request gets a suggestion within the demo flow | done |
 | M3-4 | Eval set of 50 labelled requests in `evals/cases.jsonl` and `python -m evals.run` | copilot-python | Script prints category and priority accuracy; result recorded in the README | todo |
-| M3-5 | Guardrails: output schema validation, low-confidence fallback, rate limit, canned mode for the public demo | copilot-python | Invalid model output never reaches the API; canned mode needs no API key | todo |
+| M3-5 | Guardrails: output schema validation, low-confidence fallback, rate limit, canned mode for the public demo | copilot-python | Invalid model output never reaches the API; canned mode needs no API key | done |
 
 **Human gate B:** Ahmed labels or checks the 50 eval cases himself. An eval set the agent both wrote and graded proves nothing.
 
@@ -73,8 +73,8 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 
 | ID | Task | Owner | Acceptance check | Status |
 |---|---|---|---|---|
-| M5-1 | Reverse proxy config; all services behind one address | lead | The phone uses a single base URL | todo |
-| M5-2 | End-to-end script: submit, triage, approve twice, fulfil | lead | Script passes against a fresh `docker compose up --build` | todo |
+| M5-1 | Reverse proxy config; all services behind one address | lead | The phone uses a single base URL | done |
+| M5-2 | End-to-end script: submit, triage, approve twice, fulfil | lead | Script passes against a fresh `docker compose up --build` | done |
 
 **Human gate C:** Ahmed runs the full flow by hand on a real phone before anything is recorded.
 
