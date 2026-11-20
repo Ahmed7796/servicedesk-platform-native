@@ -174,9 +174,13 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - Gemini: when limited or below 0.5 confidence, post nothing (Option B; retries count against the limit). Canned mode is the path for the recorded demo (M6-2): `COPILOT_MODE=canned`, `GEMINI_API_KEY` empty.
 - Proxy: nginx 1.27-alpine on port 8000; api and notify no longer published on all interfaces.
 
+**Checked 2026-11-20 (Ahmed, real phone)**
+- The app ran in Expo Go on Ahmed's phone against the local Compose stack (canned mode) through the proxy on the LAN. Ahmed reports the screens work: sign-in, pending list, detail, approve and reject. No new dependency or code change was needed (`npx expo start --port 8090`, since notify holds 8081).
+- Not covered: push (Expo Go cannot receive it; registration skips silently by design). M4-5 stays `todo`, and this is not Gate C, which needs the full flow including the notification.
+
 **Next**
 - After Ahmed's label check: the M3-4 eval run and its number, in `triage-copilot/evals/README.md` and in the top-level README's "Copilot evaluation" section (it says "Pending").
-- After Ahmed's device build: M4-5 acceptance on a phone (foreground, background and killed tap); then the README's "Push is untested on a phone" limit changes.
+- After Ahmed's device build (preview APK needs no new dependency; a development build needs `expo-dev-client`): M4-5 acceptance on a phone (foreground, background and killed tap); then the README's "Push is untested on a phone" limit changes. The other screens already passed in Expo Go.
 - M6-2 demo recording and M6-3 write-up (Ahmed); M6-4 deploy (lead): needs TLS and a Swagger route on the proxy, `ASPNETCORE_ENVIRONMENT` not Development, rate limiting on `service-token`.
 - Follow-ups: cold-cache jest timeouts in four mobile suites; the overdue interval has no lower bound; the Gemini client is not closed at shutdown; Option A for rate-limited retries; `triage-copilot/README.md` still opens as a skeleton ("will suggest", "This skeleton has `/health`"); the README's cold first-build time is not measured.
 
