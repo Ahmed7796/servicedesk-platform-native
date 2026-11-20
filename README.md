@@ -124,7 +124,7 @@ The default model is `gemini-3.5-flash-lite` (`GEMINI_MODEL` changes it). The co
 
 ### The phone app
 
-The app talks only to the proxy. From `mobile/`, copy `.env.example` to `.env`, set `EXPO_PUBLIC_API_BASE_URL` to `http://<LAN address of the machine running Compose>:8000`, then run `npm ci` and `npx expo start`. Push notifications need an EAS build of the app (Expo Go cannot receive them); the steps are in [`docs/handoffs/M4-5a.md`](docs/handoffs/M4-5a.md). The app has not yet been run on a real device.
+The app talks only to the proxy. From `mobile/`, copy `.env.example` to `.env`, set `EXPO_PUBLIC_API_BASE_URL` to `http://<LAN address of the machine running Compose>:8000`, then run `npm ci` and `npx expo start`. Push notifications need an EAS build of the app (Expo Go cannot receive them); the steps are in [`docs/handoffs/M4-5a.md`](docs/handoffs/M4-5a.md). The screens (sign-in, pending list, detail, approve and reject) have been checked by hand on a real phone through Expo Go against this stack; push has not, because Expo Go cannot receive it.
 
 ## Tests
 

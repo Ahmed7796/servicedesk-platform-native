@@ -125,7 +125,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 
 | Task | PR | Result |
 |---|---|---|
-| M6-1 | #56 | Top-level README: Mermaid diagram, services table, quick start (one `sed` command makes `.env` with random secrets in canned mode; `up --build --wait`; `scripts/e2e.py`), demo accounts and workflows, Gemini mode, phone app, eval pending Gate B, known limits (including the fixed approval hierarchy), how it was built. **Quick start run word for word from a fresh clone: 8 containers healthy, E2E passed 10/10** (warm Docker cache; cold build not timed). Reviewer's one blocking finding: the C# API was credited to agents (fixed; mistake row below). Same PR ticked M3-3c, M3-5, M5-1, M5-2 in PLAN. **M6-1 stays `todo`: the repo is private, so a stranger cannot clone it** |
+| M6-1 | #56 | Top-level README: Mermaid diagram, services table, quick start (one `sed` command makes `.env` with random secrets in canned mode; `up --build --wait`; `scripts/e2e.py`), demo accounts and workflows, Gemini mode, phone app, eval pending Gate B, known limits (including the fixed approval hierarchy), how it was built. **Quick start run word for word from a fresh clone: 8 containers healthy, E2E passed 10/10** (warm Docker cache; cold build not timed). Reviewer's one blocking finding: the C# API was credited to agents (fixed; mistake row below). Same PR ticked M3-3c, M3-5, M5-1, M5-2 in PLAN. Repo made public 2026-11-20; an anonymous clone (no credentials) of the README's URL works. **Closes M6-1** |
 
 **Dependencies approved by Ahmed (2026-11-18):**
 - notification-service: Spring Boot 4.1.2 starters (web, security, oauth2-resource-server, actuator, jdbc, flyway) with `flyway-database-postgresql` and `postgresql`; test starters. Testcontainers deferred to M2-2.
@@ -152,7 +152,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Copilot readiness (lead, M3-3):** no `/ready` endpoint (it isn't in the contract). In M3-3c the consumer writes a marker file after `queue.bind` and a Redis ping succeed; the image HEALTHCHECK requires the marker and `/health` 200, and the api then waits on the copilot in Compose like it does on notify.
 
 **Open decisions for Ahmed**
-- **Repo visibility:** the GitHub repo is private. Making it public closes M6-1's acceptance check ("a stranger can run the stack from the README alone") and is needed for M6-2 and M6-4.
+- **Public history (repo public since 2026-11-20):** the old SQL Server `sa` password removed in M0-5 is still in git history (`appsettings.Development.json` before #4). SQL Server is gone from the stack; if that password is used anywhere else, change it there. A history scan found no other real secret (test JWT keys are fixed byte sequences; push tokens in tests are fakes).
 - **README attribution:** check the "How it was built" paragraph (the C# API as your earlier project; first person or not).
 - **Gate B:** fill `category` and `priority` on all 50 rows of `triage-copilot/evals/review.csv`, run `python -m evals.finalize --reviewer "<name>"`, commit `cases.jsonl`. Then the lead runs `python -m evals.run` (command in #51) and records the number.
 - **Device test (M4-5):** development build (needs `expo-dev-client@58.0.21`, not approved) or preview APK. Steps in `docs/handoffs/M4-5a.md`.
@@ -174,10 +174,13 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - Gemini: when limited or below 0.5 confidence, post nothing (Option B; retries count against the limit). Canned mode is the path for the recorded demo (M6-2): `COPILOT_MODE=canned`, `GEMINI_API_KEY` empty.
 - Proxy: nginx 1.27-alpine on port 8000; api and notify no longer published on all interfaces.
 
+**Checked 2026-11-20 (Ahmed, real phone)**
+- The app ran in Expo Go on Ahmed's phone against the local Compose stack (canned mode) through the proxy on the LAN. Ahmed reports the screens work: sign-in, pending list, detail, approve and reject. No new dependency or code change was needed (`npx expo start --port 8090`, since notify holds 8081).
+- Not covered: push (Expo Go cannot receive it; registration skips silently by design). M4-5 stays `todo`, and this is not Gate C, which needs the full flow including the notification.
+
 **Next**
-- After the repo is public: tick M6-1 in PLAN (one clone of the public URL first).
 - After Ahmed's label check: the M3-4 eval run and its number, in `triage-copilot/evals/README.md` and in the top-level README's "Copilot evaluation" section (it says "Pending").
-- After Ahmed's device build: M4-5 acceptance on a phone (foreground, background and killed tap); then the README's "Push is untested on a phone" limit changes.
+- After Ahmed's device build (preview APK needs no new dependency; a development build needs `expo-dev-client`): M4-5 acceptance on a phone (foreground, background and killed tap); then the README's "Push is untested on a phone" limit changes. The other screens already passed in Expo Go.
 - M6-2 demo recording and M6-3 write-up (Ahmed); M6-4 deploy (lead): needs TLS and a Swagger route on the proxy, `ASPNETCORE_ENVIRONMENT` not Development, rate limiting on `service-token`.
 - Follow-ups: cold-cache jest timeouts in four mobile suites; the overdue interval has no lower bound; the Gemini client is not closed at shutdown; Option A for rate-limited retries; `triage-copilot/README.md` still opens as a skeleton ("will suggest", "This skeleton has `/health`"); the README's cold first-build time is not measured.
 
