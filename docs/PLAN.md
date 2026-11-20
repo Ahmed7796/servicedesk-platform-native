@@ -82,7 +82,7 @@ Owner column: `lead` is the main session; the others are the subagents in `.clau
 
 | ID | Task | Owner | Acceptance check | Status |
 |---|---|---|---|---|
-| M6-1 | README: what it does, architecture diagram, two-minute quick start, eval result, known limits | lead | A stranger can run the stack from the README alone | todo |
+| M6-1 | README: what it does, architecture diagram, two-minute quick start, eval result, known limits | lead | A stranger can run the stack from the README alone | done |
 | M6-2 | 60-second demo recording | Ahmed | Shows submit, copilot triage, phone approval, notification | todo |
 | M6-3 | Turn `docs/build-log.md` into a short "what the agents got wrong" write-up | Ahmed | Ready to post | todo |
 | M6-4 | Deploy the Compose stack to one small server with the copilot in canned or rate-limited mode | lead | Public Swagger link works; README says "deployed demo" | todo |
