@@ -110,7 +110,7 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M3-3c-2b | #46 | Readiness marker (generation counter, stale marker cleared), lifespan, HEALTHCHECK, Redis timeouts, app logger at INFO; Compose wiring (api waits for copilot; copilot no longer waits for api). **Live E2E: three submitted requests got Gemini triage** (one after two 503 retries), request unchanged, DLQ empty. **Closes M3-3c**; 283 tests with real Redis |
 | M4-5b | #48 | Tap opens RequestDetail with one stack entry (popTo, push or reset as needed), signed out goes to Login, cold-start tap once, foreground push refreshes the list, uses the generated `PushData` type; 174 tests. Not on a device |
 
-**As of 2026-11-19 (evening), seventh round open for review.** Main at `924ec35`. Stacked pairs: merge #50 before #51, #52 before #53, #49 before #54.
+**As of 2026-11-19 (evening), seventh round.** #49 to #55 merged by Ahmed (main at `900ee3f`).
 
 | Task | PR | Result |
 |---|---|---|
@@ -120,6 +120,12 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 | M3-5a | #52 | `COPILOT_MODE=canned`: rule-based suggestion through the same `triage()`, validation and single post; `[Canned demo]` prefix; no key. Compose: two canned suggestions posted end to end. Not injection-resistant (keyword table); stated |
 | M3-5b | #53 | `COPILOT_MIN_CONFIDENCE` 0.5 (skip, nothing posted) and `COPILOT_RATE_LIMIT_PER_MINUTE` 10 (per process, terminal skip). Compose with limit 1: limited and skipped as designed; a retried request was dropped, now a stated limit. **Closes M3-5** |
 | M5-2 | #54 | `scripts/e2e.py` through the proxy: submit, triage, two approvals, fulfil, audit trail, notify. **Passed on a fresh `docker compose up --build`** (merged with #52, canned mode) |
+
+**As of 2026-11-20, eighth round.** #56 merged by Ahmed (main at `18e0b9a`).
+
+| Task | PR | Result |
+|---|---|---|
+| M6-1 | #56 | Top-level README: Mermaid diagram, services table, quick start (one `sed` command makes `.env` with random secrets in canned mode; `up --build --wait`; `scripts/e2e.py`), demo accounts and workflows, Gemini mode, phone app, eval pending Gate B, known limits (including the fixed approval hierarchy), how it was built. **Quick start run word for word from a fresh clone: 8 containers healthy, E2E passed 10/10** (warm Docker cache; cold build not timed). Reviewer's one blocking finding: the C# API was credited to agents (fixed; mistake row below). Same PR ticked M3-3c, M3-5, M5-1, M5-2 in PLAN. **M6-1 stays `todo`: the repo is private, so a stranger cannot clone it** |
 
 **Dependencies approved by Ahmed (2026-11-18):**
 - notification-service: Spring Boot 4.1.2 starters (web, security, oauth2-resource-server, actuator, jdbc, flyway) with `flyway-database-postgresql` and `postgresql`; test starters. Testcontainers deferred to M2-2.
@@ -146,7 +152,8 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - **Copilot readiness (lead, M3-3):** no `/ready` endpoint (it isn't in the contract). In M3-3c the consumer writes a marker file after `queue.bind` and a Redis ping succeed; the image HEALTHCHECK requires the marker and `/health` 200, and the api then waits on the copilot in Compose like it does on notify.
 
 **Open decisions for Ahmed**
-- Review and merge #49 to #54 (pairs above), and this docs PR.
+- **Repo visibility:** the GitHub repo is private. Making it public closes M6-1's acceptance check ("a stranger can run the stack from the README alone") and is needed for M6-2 and M6-4.
+- **README attribution:** check the "How it was built" paragraph (the C# API as your earlier project; first person or not).
 - **Gate B:** fill `category` and `priority` on all 50 rows of `triage-copilot/evals/review.csv`, run `python -m evals.finalize --reviewer "<name>"`, commit `cases.jsonl`. Then the lead runs `python -m evals.run` (command in #51) and records the number.
 - **Device test (M4-5):** development build (needs `expo-dev-client@58.0.21`, not approved) or preview APK. Steps in `docs/handoffs/M4-5a.md`.
 
@@ -168,15 +175,15 @@ Updated by the lead at each milestone boundary, or when a long session is handed
 - Proxy: nginx 1.27-alpine on port 8000; api and notify no longer published on all interfaces.
 
 **Next**
-- After Ahmed's label check: the M3-4 eval run and its number (evals/README.md, later the top-level README).
-- After Ahmed's device build: M4-5 acceptance on a phone (foreground, background and killed tap).
-- **M6-1 README** (lead): what it does, architecture diagram, two-minute quick start (canned mode by default for a stranger), eval result, known limits.
+- After the repo is public: tick M6-1 in PLAN (one clone of the public URL first).
+- After Ahmed's label check: the M3-4 eval run and its number, in `triage-copilot/evals/README.md` and in the top-level README's "Copilot evaluation" section (it says "Pending").
+- After Ahmed's device build: M4-5 acceptance on a phone (foreground, background and killed tap); then the README's "Push is untested on a phone" limit changes.
 - M6-2 demo recording and M6-3 write-up (Ahmed); M6-4 deploy (lead): needs TLS and a Swagger route on the proxy, `ASPNETCORE_ENVIRONMENT` not Development, rate limiting on `service-token`.
-- Follow-ups: cold-cache jest timeouts in four mobile suites; the overdue interval has no lower bound; the Gemini client is not closed at shutdown; Option A for rate-limited retries.
+- Follow-ups: cold-cache jest timeouts in four mobile suites; the overdue interval has no lower bound; the Gemini client is not closed at shutdown; Option A for rate-limited retries; `triage-copilot/README.md` still opens as a skeleton ("will suggest", "This skeleton has `/health`"); the README's cold first-build time is not measured.
 
 **Resuming in a new session**
 - Builders are fresh agents per session; the previous session's builder agents are gone. Brief from this summary and the task's hand-offs.
-- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), on the PR #53 (copilot), #42 (notify) and #48 (mobile) branches; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends.
+- Worktrees still exist locally under `.worktrees/` (`notify`, `copilot`, `mobile`), on the PR #53 (copilot), #42 (notify) and #48 (mobile) branches; a `.env` copy sits in `notify` and `copilot` (ignored). Before each task: `git -C .worktrees/<svc> switch -c <task-branch> origin/main` after checking `git status` is clean. Remove them with `git worktree remove` when the parallel phase ends. Lead tasks (docs, README, Compose) run in the main checkout on a branch from `origin/main`; `.vscode/` there is Ahmed's and stays untracked.
 - Lead's verification helpers live in the scratchpad and are gone with the session; recreate as needed: a Python 3.12 test runner (`docker run -v "$PWD":/repo -w /repo/triage-copilot python:3.12-slim …`), a Compose check under its own project name (`docker compose -p sdverify up --build -d --wait` from a worktree, `down -v` after), the OpenAPI-to-JSON-Schema converter (see "How the loop runs now"), and the demo-account login loop (password `ServiceDesk!2026`, seeded in Development only).
 
 **Open follow-ups**
